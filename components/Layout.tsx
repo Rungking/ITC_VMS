@@ -18,6 +18,9 @@ import {
   Route,
   History,
   ShieldCheck,
+  Monitor,
+  Camera,
+  MapIcon,
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { ClientOnly } from "./ClientOnly";
@@ -41,8 +44,14 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     },
     {
       href: "/monitor",
-      icon: TableProperties, // Should ideally be a monitor icon but keeping consistent with existing
+      icon: Monitor, // Should ideally be a monitor icon but keeping consistent with existing
       label: t("monitor"),
+    },
+    {
+      href: "/map",
+      icon: MapIcon, // Assuming you have a Map icon, otherwise use Route or something similar
+      label: t("map"),
+      roles: ["root"], // User and Guest cannot access
     },
     {
       href: "/logs",
@@ -57,7 +66,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     },
     {
       href: "/settings",
-      icon: Settings,
+      icon: Settings, // Assuming you have a Device icon, otherwise use Route or something similar
       label: t("settings"),
       roles: ["root"], // User and Guest cannot access
     },
@@ -140,6 +149,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                       width={160}
                       height={40}
                       className="relative rounded-lg object-contain"
+                      style={{ height: "auto" }}
                       priority
                     />
                   </div>

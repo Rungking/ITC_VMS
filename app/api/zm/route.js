@@ -49,15 +49,47 @@ export async function GET() {
 
     // 3. Map ZM monitors → Camera format expected by the UI
     const cameras = zmMonitors.map((item) => {
-      const m = item.Monitor ?? item;
+      // ZoneMinder API Returns an object with keys: Monitor, Monitor_Status, etc.
+      const m = item.Monitor;
+      const ms = item.Monitor_Status;
+      
+      if (!m) return null;
+
+      // ZoneMinder Status Detection based on actual JSON structure:
+      // 1. Status: "Connected" means stream is actually established
+      // 2. CaptureFPS: > 0 means frames are being received
+      // 3. CaptureBandwidth: > 0 means data is flowing
+      
+      const statusText = String(ms?.Status || "").toLowerCase();
+      const isConnected = statusText === "connected";
+      const captureFPS = parseFloat(ms?.CaptureFPS || 0);
+      const isCapturing = captureFPS > 0;
+      const bandwidth = parseInt(ms?.CaptureBandwidth || 0);
+      const hasDataFlow = bandwidth > 0;
+
+      // Primary criteria for "Active":
+      // - Enabled by user (Enabled: 1)
+      // - Function is not "None"
+      // - Must have actual connection/data (Connected OR capturing frames OR bandwidth > 0)
+      const isEnabled = String(m.Enabled) === "1" || m.Enabled === 1;
+      const functionName = String(m.Function || "").trim();
+      const isFunctioning = functionName !== "None" && functionName !== "";
+      
+      const isActive = isEnabled && isFunctioning && (isConnected || isCapturing || hasDataFlow);
+      
+      console.log(`[Camera ID ${m.Id}] ${m.Name}: Status=${ms?.Status}, FPS=${ms?.CaptureFPS}, BW=${ms?.CaptureBandwidth} -> Result=${isActive ? "ACTIVE" : "INACTIVE"}`);
+
       return {
         id: String(m.Id),
         name: m.Name ?? `Camera ${m.Id}`,
         port: undefined,
         framerate: Number(m.MaxFPS) || 15,
         streamUrl: `${ZM_BASE_URL}/cgi-bin/nph-zms?mode=jpeg&monitor=${m.Id}&scale=100&token=${encodeURIComponent(token)}`,
+        status: isActive ? "active" : "inactive",
+        type: m.Type,
+        path: m.Path
       };
-    });
+    }).filter(Boolean);
 
     return NextResponse.json({ success: true, accessToken: token, cameras });
   } catch (error) {

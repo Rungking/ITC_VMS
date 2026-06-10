@@ -38,25 +38,32 @@ function CameraGridItem({
   fullscreen?: boolean;
 }) {
   const streamUrl = cam.streamUrl ?? (cam.port ? `http://localhost:${cam.port}` : null);
-  const { status } = useStreamVerification(streamUrl);
-  const isOffline = status === "inactive";
-  const isChecking = status === "checking";
-
+  const { status: verifyStatus } = useStreamVerification(streamUrl);
+  
+  const [imgError, setImgError] = useState(false);
+  
+  // ตัดสถานะ "checking" ออกจากการอัปเดตสถานะของระบบ
   useEffect(() => {
-    onStatusChange?.(cam.id, status);
-  }, [cam.id, status, onStatusChange]);
+    if (verifyStatus !== "checking") {
+      const status = (cam.status === "inactive" || imgError) ? "inactive" : verifyStatus;
+      onStatusChange?.(cam.id, status);
+    }
+  }, [cam.id, verifyStatus, cam.status, imgError, onStatusChange]);
+
+  // สถานะสำหรับการแสดงผลใน Grid (ให้ยึดตาม cam.status จากระบบหลัก)
+  const isOffline = cam.status === "inactive";
 
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: idx * 0.05 }}
-      onClick={() => status === "active" && setSelectedCamera(cam)}
+      onClick={() => !isOffline && setSelectedCamera(cam)}
       className={`group relative overflow-hidden transition-all ${
         fullscreen
           ? "h-full bg-zinc-100 dark:bg-zinc-950"
           : "bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-sm hover:shadow-md"
-      } ${status === "active" ? "cursor-pointer" : ""}`}
+      } ${!isOffline ? "cursor-pointer" : ""}`}
     >
       {/* Video Feed */}
       <div className={
@@ -71,10 +78,6 @@ function CameraGridItem({
               {t("noSignal")}
             </span>
           </div>
-        ) : isChecking ? (
-          <div className="flex flex-col items-center justify-center text-zinc-500 space-y-2">
-            <Loader2 className="w-8 h-8 opacity-20 animate-spin" />
-          </div>
         ) : (
           <Image
             src={streamUrl ?? "/placeholder-v.png"}
@@ -83,11 +86,12 @@ function CameraGridItem({
             fill
             className="object-contain opacity-80 group-hover:opacity-100 transition-opacity duration-500"
             referrerPolicy="no-referrer"
+            onError={() => setImgError(true)}
           />
         )}
 
         {/* Hover Overlay */}
-        {status === "active" && (
+        {!isOffline && (
           <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
             <Maximize2 className="w-8 h-8 text-white opacity-0 group-hover:opacity-100 transition-opacity transform scale-75 group-hover:scale-100 duration-300" />
           </div>
@@ -99,11 +103,6 @@ function CameraGridItem({
             <>
               <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
               <span className="text-zinc-300">{t("offline")}</span>
-            </>
-          ) : isChecking ? (
-            <>
-              <span className="w-1.5 h-1.5 rounded-full bg-zinc-500 animate-pulse" />
-              <span className="text-zinc-300">{t("checking")}</span>
             </>
           ) : (
             <>

@@ -19,6 +19,7 @@ interface AppContextType {
   loading: boolean;
   error: string | null;
   refresh: () => void;
+  updateCameraStatus: (id: string, status: Camera["status"]) => void;
 }
 
 const AppContext = createContext<AppContextType>({
@@ -26,6 +27,7 @@ const AppContext = createContext<AppContextType>({
   loading: true,
   error: null,
   refresh: () => {},
+  updateCameraStatus: () => {},
 });
 
 // ─── Language Context ─────────────────────────────────────────────────────────
@@ -100,15 +102,35 @@ export function Providers({ children }: { children: React.ReactNode }) {
     [language]
   );
 
-  const fetchCameras = useCallback(async () => {
-    setLoading(true);
+  const fetchCameras = useCallback(async (isSilent = false) => {
+    if (!isSilent) setLoading(true);
     setError(null);
     try {
       const res = await fetch("/api/zm");
       const data = await res.json();
       if (data.success) {
-        setCameras(data.cameras ?? []);
-        addLog(`${translations[language]?.camerasLoaded ?? "Cameras loaded"} (${data.cameras?.length ?? 0})`, "info");
+        setCameras((prev) => {
+          const newCameras = data.cameras ?? [];
+          
+          // ถ้าความยาวไม่เท่ากัน ให้เปลี่ยนเลย
+          if (prev.length !== newCameras.length) return newCameras;
+
+          // เช็คว่ามีข้อมูลสำคัญตัวไหนเปลี่ยนไหม ถ้าไม่เปลี่ยนใช้ของเดิมเพื่อป้องกันการกระพริบ
+          const isSame = prev.every((cam, idx) => {
+            const nextCam = newCameras[idx];
+            return (
+              cam.id === nextCam.id &&
+              cam.status === nextCam.status &&
+              cam.streamUrl === nextCam.streamUrl
+            );
+          });
+
+          return isSame ? prev : newCameras;
+        });
+        
+        if (!isSilent) {
+          addLog(`${translations[language]?.camerasLoaded ?? "Cameras loaded"} (${data.cameras?.length ?? 0})`, "info");
+        }
       } else {
         setError(data.error ?? "Failed to load cameras");
         addLog(data.error ?? translations[language]?.loadFailed ?? "Load failed", "error");
@@ -118,17 +140,33 @@ export function Providers({ children }: { children: React.ReactNode }) {
       setError(msg);
       addLog(msg, "error");
     } finally {
-      setLoading(false);
+      if (!isSilent) setLoading(false);
     }
   }, [language]);
 
   useEffect(() => {
     fetchCameras();
+
+    // เพิ่มการ Refresh ข้อมูลจาก ZM ทุกๆ 15 วินาทีแบบ Silent (ไม่แสดง Loading)
+    const interval = setInterval(() => {
+      fetchCameras(true);
+    }, 15000);
+
+    return () => clearInterval(interval);
   }, [fetchCameras]);
+
+  const updateCameraStatus = useCallback((id: string, status: Camera["status"]) => {
+    setCameras((prev) => {
+      const camera = prev.find(c => c.id === id);
+      // ถ้าสถานะเดิมเหมือนกันอยู่แล้ว ไม่ต้องอัปเดตเพื่อป้องกันการ re-render วนลูป
+      if (camera && camera.status === status) return prev;
+      return prev.map((cam) => (cam.id === id ? { ...cam, status } : cam));
+    });
+  }, []);
 
   return (
     <ThemeContext.Provider value={{ theme, toggleTheme }}>
-      <AppContext.Provider value={{ cameras, loading, error, refresh: fetchCameras }}>
+      <AppContext.Provider value={{ cameras, loading, error, refresh: fetchCameras, updateCameraStatus }}>
         <LanguageContext.Provider value={{ t, language, toggleLanguage }}>
           {children}
         </LanguageContext.Provider>

@@ -1,7 +1,7 @@
 {
   "monitor": "Monitor",
   "logs": "History",
-  "settings": "Camera Settings",
+  "settings": "Settings",
   "addCamera": "Add Camera",
   "editCamera": "Edit Camera",
   "deleteCamera": "Delete Camera",
@@ -232,5 +232,18 @@
   "camerasLoaded": "Cameras loaded successfully",
   "loadFailed": "Failed to load cameras",
   "clearLogs": "Clear Logs",
-  "noLogs": "No logs yet"
+  "noLogs": "No logs yet",
+  "devices": "Devices",
+  "map": "Map",
+  "overview": "Overview",
+  "table": "Table",
+  "totalCameras": "Total Cameras",
+  "onlineStatus": "Online Status",
+  "offlineStatus": "Offline Status",
+  "connectivityDistribution": "Camera Connectivity Distribution",
+  "cameraList": "Camera List",
+  "connectionPath": "Connection Path",
+  "type": "Type",
+  "searchCameras": "Search cameras...",
+  "online": "Online"
 }

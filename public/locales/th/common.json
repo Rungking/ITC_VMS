@@ -1,7 +1,7 @@
 {
   "monitor": "จอมอนิเตอร์",
   "logs": "ประวัติ",
-  "settings": "ตั้งค่ากล้อง",
+  "settings": "ตั้งค่า",
   "addCamera": "เพิ่มกล้อง",
   "editCamera": "แก้ไขกล้อง",
   "deleteCamera": "ลบกล้อง",
@@ -232,5 +232,18 @@
   "camerasLoaded": "โหลดข้อมูลกล้องสำเร็จ",
   "loadFailed": "โหลดข้อมูลกล้องไม่สำเร็จ",
   "clearLogs": "ล้างบันทึก",
-  "noLogs": "ยังไม่มีบันทึก"
+  "noLogs": "ยังไม่มีบันทึก",
+  "devices": "อุปกรณ์",
+  "map": "แผนที่",
+  "overview": "ภาพรวม",
+  "table": "ตาราง",
+  "totalCameras": "กล้องทั้งหมด",
+  "onlineStatus": "สถานะออนไลน์",
+  "offlineStatus": "สถานะออฟไลน์",
+  "connectivityDistribution": "สถิติการเชื่อมต่อกล้อง",
+  "cameraList": "รายการกล้อง",
+  "connectionPath": "เส้นทางการเชื่อมต่อ",
+  "type": "ประเภท",
+  "searchCameras": "ค้นหากล้อง...",
+  "online": "ออนไลน์"
 }
