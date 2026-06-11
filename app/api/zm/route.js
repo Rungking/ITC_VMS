@@ -77,7 +77,18 @@ export async function GET() {
       
       const isActive = isEnabled && isFunctioning && (isConnected || isCapturing || hasDataFlow);
       
-      console.log(`[Camera ID ${m.Id}] ${m.Name}: Status=${ms?.Status}, FPS=${ms?.CaptureFPS}, BW=${ms?.CaptureBandwidth} -> Result=${isActive ? "ACTIVE" : "INACTIVE"}`);
+      // DSS Device Type Detection Logic
+      const pathStr = String(m.Path || "");
+      const nameStr = String(m.Name || "").toUpperCase();
+      let deviceType = "IPC"; // Default
+
+      if (nameStr.includes("LPR") || nameStr.includes("ANPR")) {
+        deviceType = "ANPR Device";
+      }
+      // Note: Default is IPC as seen in DSS for common IP cameras.
+      // We avoid simple "channel=" check as many IPCs use it in their RTSP paths.
+      
+      console.log(`[Camera ID ${m.Id}] ${m.Name}: Status=${ms?.Status}, Type=${deviceType} -> Result=${isActive ? "ACTIVE" : "INACTIVE"}`);
 
       return {
         id: String(m.Id),
@@ -86,7 +97,7 @@ export async function GET() {
         framerate: Number(m.MaxFPS) || 15,
         streamUrl: `${ZM_BASE_URL}/cgi-bin/nph-zms?mode=jpeg&monitor=${m.Id}&scale=100&token=${encodeURIComponent(token)}`,
         status: isActive ? "active" : "inactive",
-        type: m.Type,
+        type: deviceType,
         path: m.Path
       };
     }).filter(Boolean);
@@ -98,5 +109,120 @@ export async function GET() {
       { success: false, error: "Cannot connect to ZoneMinder" },
       { status: 500 }
     );
+  }
+}
+
+export async function POST(request) {
+  try {
+    const body = await request.json();
+
+    // 1. Login to ZoneMinder to get token
+    const loginRes = await fetch(`${ZM_BASE_URL}/api/host/login.json`, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({ user: ZM_USER, pass: ZM_PASS }),
+      cache: "no-store",
+    });
+
+    if (!loginRes.ok) {
+      return NextResponse.json({ success: false, error: "ZM Login failed" }, { status: 502 });
+    }
+
+    const loginData = await loginRes.json();
+    const token = loginData.access_token ?? loginData.credentials ?? "";
+
+    // 2. Add Monitor
+    const addRes = await fetch(`${ZM_BASE_URL}/api/monitors.json?token=${encodeURIComponent(token)}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams(body), // ZoneMinder API expects form-urlencoded for many versions
+    });
+
+    const addData = await addRes.json();
+
+    if (!addRes.ok) {
+      return NextResponse.json({ success: false, ...addData }, { status: addRes.status });
+    }
+
+    return NextResponse.json({ success: true, ...addData });
+  } catch (error) {
+    console.error("[POST /api/zm]", error);
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+  }
+}
+
+export async function DELETE(req) {
+  try {
+    const { ids } = await req.json();
+    if (!ids || !Array.isArray(ids)) {
+      return NextResponse.json({ success: false, error: "Invalid IDs" }, { status: 400 });
+    }
+
+    // 1. Login to ZoneMinder
+    const loginRes = await fetch(`${ZM_BASE_URL}/api/host/login.json`, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({ user: ZM_USER, pass: ZM_PASS }),
+      cache: "no-store",
+    });
+
+    const loginData = await loginRes.json();
+    const token = loginData.access_token ?? loginData.credentials ?? "";
+
+    if (!token) {
+      return NextResponse.json({ success: false, error: "Auth failed" }, { status: 401 });
+    }
+
+    // 2. Delete each monitor
+    const results = await Promise.all(
+      ids.map(async (id) => {
+        const deleteRes = await fetch(
+          `${ZM_BASE_URL}/api/monitors/${id}.json?token=${encodeURIComponent(token)}`,
+          { method: "DELETE" }
+        );
+        return { id, ok: deleteRes.ok };
+      })
+    );
+
+    const successCount = results.filter((r) => r.ok).length;
+
+    return NextResponse.json({ 
+      success: successCount > 0, 
+      count: successCount,
+      total: ids.length 
+    });
+  } catch (error) {
+    console.error("ZM DELETE Error:", error);
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+  }
+}
+
+export async function PUT(req) {
+  try {
+    const { id, data } = await req.json();
+    if (!id) return NextResponse.json({ success: false, error: "Missing ID" }, { status: 400 });
+
+    // 1. Login
+    const loginRes = await fetch(`${ZM_BASE_URL}/api/host/login.json`, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({ user: ZM_USER, pass: ZM_PASS }),
+      cache: "no-store",
+    });
+    const loginData = await loginRes.json();
+    const token = loginData.access_token ?? loginData.credentials ?? "";
+
+    // 2. Update Monitor
+    const updateRes = await fetch(`${ZM_BASE_URL}/api/monitors/${id}.json?token=${encodeURIComponent(token)}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams(data),
+    });
+
+    const updateData = await updateRes.json();
+    return NextResponse.json({ success: updateRes.ok, ...updateData });
+  } catch (error) {
+    console.error("ZM PUT Error:", error);
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }
