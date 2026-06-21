@@ -12,7 +12,6 @@ import {
   LayoutGrid,
   Loader2,
 } from "lucide-react";
-import Image from "next/image";
 import {
   Dialog,
   DialogContent,
@@ -20,7 +19,6 @@ import {
   DialogTitle,
 } from "@/components/Dialog";
 import { Camera } from "@/types";
-import { useStreamVerification } from "@/hooks/use-stream-verification";
 
 function CameraGridItem({
   cam,
@@ -37,20 +35,33 @@ function CameraGridItem({
   onStatusChange?: (id: string, status: string) => void;
   fullscreen?: boolean;
 }) {
-  const streamUrl = cam.streamUrl ?? (cam.port ? `http://localhost:${cam.port}` : null);
-  const { status: verifyStatus } = useStreamVerification(streamUrl);
-  
-  const [imgError, setImgError] = useState(false);
-  
-  // ตัดสถานะ "checking" ออกจากการอัปเดตสถานะของระบบ
-  useEffect(() => {
-    if (verifyStatus !== "checking") {
-      const status = (cam.status === "inactive" || imgError) ? "inactive" : verifyStatus;
-      onStatusChange?.(cam.id, status);
-    }
-  }, [cam.id, verifyStatus, cam.status, imgError, onStatusChange]);
+  // Lock the stream URL on first mount — don't restart stream when context refreshes
+  const streamUrlRef = useRef<string | null>(null);
+  if (streamUrlRef.current === null) {
+    streamUrlRef.current = cam.streamUrl ?? (cam.port ? `http://localhost:${cam.port}` : null);
+  }
+  const streamUrl = streamUrlRef.current;
 
-  // สถานะสำหรับการแสดงผลใน Grid (ให้ยึดตาม cam.status จากระบบหลัก)
+  const [imgKey, setImgKey] = useState(0); // increment to force img reload
+  const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Report status from cam.status (source of truth from AppContext)
+  useEffect(() => {
+    if (cam.status) onStatusChange?.(cam.id, cam.status);
+  }, [cam.id, cam.status, onStatusChange]);
+
+  const handleError = useCallback(() => {
+    // Auto-retry after 5 seconds
+    if (retryTimerRef.current) clearTimeout(retryTimerRef.current);
+    retryTimerRef.current = setTimeout(() => {
+      setImgKey(k => k + 1);
+    }, 5000);
+  }, []);
+
+  useEffect(() => () => {
+    if (retryTimerRef.current) clearTimeout(retryTimerRef.current);
+  }, []);
+
   const isOffline = cam.status === "inactive";
 
   return (
@@ -79,14 +90,15 @@ function CameraGridItem({
             </span>
           </div>
         ) : (
-          <Image
+          // Plain <img> keeps the MJPEG multipart connection alive without Next.js interference
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            key={imgKey}
             src={streamUrl ?? "/placeholder-v.png"}
-            unoptimized
             alt={cam.name}
-            fill
-            className="object-contain opacity-80 group-hover:opacity-100 transition-opacity duration-500"
+            className="absolute inset-0 w-full h-full object-contain opacity-80 group-hover:opacity-100 transition-opacity duration-500"
             referrerPolicy="no-referrer"
-            onError={() => setImgError(true)}
+            onError={handleError}
           />
         )}
 
@@ -340,17 +352,16 @@ export default function MonitorPage() {
               </DialogHeader>
 
               <div className="relative aspect-video w-full overflow-hidden bg-black">
-                <Image
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
                   src={
                     selectedCamera.streamUrl ??
                     (selectedCamera.port
                       ? `http://localhost:${selectedCamera.port}`
                       : "/placeholder-v.png")
                   }
-                  unoptimized
                   alt={selectedCamera.name}
-                  fill
-                  className="object-contain"
+                  className="absolute inset-0 w-full h-full object-contain"
                   referrerPolicy="no-referrer"
                 />
               </div>

@@ -7,4 +7,8 @@ export interface Camera {
   status?: "active" | "inactive" | "checking";
   type?: string;
   path?: string;
+  lat?: number;
+  lng?: number;
+  location?: string;
+  model?: string;
 }

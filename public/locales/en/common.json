@@ -7,6 +7,7 @@
   "editCamera": "Edit Camera",
   "deleteCamera": "Delete Camera",
   "cameraName": "Camera Name",
+  "cameraModel": "Camera Model",
   "location": "Location",
   "port": "Port",
   "rtspUrl": "RTSP URL",

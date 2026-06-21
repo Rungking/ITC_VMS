@@ -18,31 +18,23 @@ export function useStreamVerification(streamUrl: string | null) {
 
     const check = async () => {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 8000); // เพิ่ม Timeout เป็น 8 วินาที
+      const timeoutId = setTimeout(() => controller.abort(), 5000);
       try {
-        // ใช้ fetch เช็คการเข้าถึงได้ของ URL 
-        // เพิ่มพารามิเตอร์ random เพื่อป้องกัน browser cache ผลลัพธ์เดิม
-        const sep = streamUrl.includes('?') ? '&' : '?';
-        const checkUrl = `${streamUrl}${sep}t=${Date.now()}`;
+        // Use a lightweight HEAD request to check connectivity
+        // Extract the base host from the stream URL to ping
+        const url = new URL(streamUrl);
+        const pingUrl = `${url.protocol}//${url.host}/zm/api/host/getVersion.json`;
 
-        await fetch(checkUrl, {
-          method: "GET",
+        await fetch(pingUrl, {
+          method: "HEAD",
           mode: "no-cors",
           signal: controller.signal,
           cache: "no-store",
-          headers: {
-            'Cache-Control': 'no-cache',
-            'Pragma': 'no-cache'
-          }
         });
-        
+
         if (!cancelled) setStatus("active");
       } catch (err) {
-        // ถ้าเป็น AbortError (timeout) ให้พยายามรักษาสถานะเดิมไว้ก่อน ไม่รีบตัดสินว่าเป็น offline
-        if (err instanceof Error && err.name === 'AbortError') {
-          console.warn("Stream check timeout, keeping current status");
-          return;
-        }
+        if (err instanceof Error && err.name === "AbortError") return; // timeout — keep current status
         if (!cancelled) setStatus("inactive");
       } finally {
         clearTimeout(timeoutId);
@@ -50,7 +42,7 @@ export function useStreamVerification(streamUrl: string | null) {
     };
 
     check();
-    const interval = setInterval(check, 15000);
+    const interval = setInterval(check, 30000); // check every 30s instead of 15s
 
     return () => {
       cancelled = true;

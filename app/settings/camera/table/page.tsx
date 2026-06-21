@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useAppContext, useLanguage } from "@/components/providers";
 import { Dialog, DialogContent } from "@/components/Dialog";
@@ -14,20 +14,60 @@ import {
   Trash2,
   Pencil,
   Globe,
-  X
+  X,
+  Check
 } from "lucide-react";
 
 export default function CameraTablePage() {
-  const appCtx = useAppContext() as any;
-  const cameras = appCtx.cameras ?? [];
-  const loading = appCtx.loading ?? false;
-  const refreshCameras = appCtx.refreshCameras ?? (() => {});
+  const { cameras, loading, refresh: refreshCameras } = useAppContext();
   const { t } = useLanguage();
   const [search, setSearch] = useState("");
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' | null }>({ key: 'path', direction: null });
   const [deviceTypeFilter, setDeviceTypeFilter] = useState("ALL");
   const [statusFilter, setStatusFilter] = useState("ALL");
+
+  // Column Visibility State
+  const [columnVisibility, setColumnVisibility] = useState<Record<string, boolean>>({
+    id: true,
+    ipAddress: true,
+    cameraName: true,
+    model: true,
+    type: true,
+    status: true,
+    offlineReason: true,
+    mapLocation: true,
+    actions: true,
+  });
+  const [showColumnFilter, setShowColumnFilter] = useState(false);
+  const filterRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const saved = localStorage.getItem("camera-table-columns");
+    if (saved) {
+      try {
+        setColumnVisibility(JSON.parse(saved));
+      } catch (e) {
+        console.error("Failed to parse saved columns", e);
+      }
+    }
+  }, []);
+
+  const toggleColumn = (key: string) => {
+    const newVisibility = { ...columnVisibility, [key]: !columnVisibility[key] };
+    setColumnVisibility(newVisibility);
+    localStorage.setItem("camera-table-columns", JSON.stringify(newVisibility));
+  };
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (filterRef.current && !filterRef.current.contains(event.target as Node)) {
+        setShowColumnFilter(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   // Delete State
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -79,9 +119,9 @@ export default function CameraTablePage() {
     // Sorting
     if (sortConfig.direction) {
       result.sort((a, b) => {
-        const key = sortConfig.key === 'path' ? 'displayIp' : sortConfig.key;
-        const aValue = String((a as any)[key] || "");
-        const bValue = String((b as any)[key] || "");
+        const key = (sortConfig.key === 'path' ? 'displayIp' : sortConfig.key) as keyof typeof a;
+        const aValue = String(a[key] || "");
+        const bValue = String(b[key] || "");
         return sortConfig.direction === 'asc' 
           ? aValue.localeCompare(bValue, undefined, { numeric: true }) 
           : bValue.localeCompare(aValue, undefined, { numeric: true });
@@ -123,7 +163,7 @@ export default function CameraTablePage() {
       if (result.success) {
         setSelectedIds(prev => prev.filter(id => !idsToDelete.includes(id)));
         setDeleteDialogOpen(false);
-        refresh();
+        refreshCameras();
       } else {
         alert("Failed to delete device(s)");
       }
@@ -135,17 +175,19 @@ export default function CameraTablePage() {
     }
   };
 
+  const visibleColumnCount = Object.values(columnVisibility).filter(Boolean).length + 2; // +1 for checkbox, +1 for empty last col
+
   return (
     <div className="space-y-4">
       {/* Delete Confirmation Dialog matching image */}
       <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <DialogContent className="max-w-md bg-[#2d333e] border border-[#3e4655] rounded-lg overflow-hidden p-0 shadow-2xl">
+        <DialogContent className="max-w-md bg-white dark:bg-[#2d333e] border border-zinc-200 dark:border-[#3e4655] rounded-lg overflow-hidden p-0 shadow-2xl">
           {/* Header */}
-          <div className="flex items-center justify-between px-4 py-2 border-b border-[#3e4655]">
-            <h3 className="text-sm font-medium text-zinc-200">Prompt Message</h3>
+          <div className="flex items-center justify-between px-4 py-2 border-b border-zinc-200 dark:border-[#3e4655]">
+            <h3 className="text-sm font-medium text-zinc-700 dark:text-zinc-200">Prompt Message</h3>
             <button 
               onClick={() => setDeleteDialogOpen(false)}
-              className="text-zinc-400 hover:text-white transition-colors"
+              className="text-zinc-400 hover:text-zinc-700 dark:hover:text-white transition-colors"
             >
               <X className="w-4 h-4" />
             </button>
@@ -155,26 +197,26 @@ export default function CameraTablePage() {
           <div className="p-8 flex items-center gap-4">
             <div className="w-12 h-12 flex-shrink-0 bg-amber-500/10 rounded-full flex items-center justify-center">
               <div className="w-10 h-10 bg-amber-500 rounded-full flex items-center justify-center">
-                <span className="text-2xl font-bold text-[#2d333e]">!</span>
+                <span className="text-2xl font-bold text-white">!</span>
               </div>
             </div>
-            <p className="text-zinc-200 text-lg">
+            <p className="text-zinc-700 dark:text-zinc-200 text-lg">
               Are you sure you want to delete the device?
             </p>
           </div>
 
           {/* Footer */}
-          <div className="flex justify-end gap-2 px-4 py-3 bg-[#2d333e]">
+          <div className="flex justify-end gap-2 px-4 py-3 bg-zinc-50 dark:bg-[#2d333e] border-t border-zinc-200 dark:border-[#3e4655]">
             <button
               disabled={isDeleting}
               onClick={handleConfirmDelete}
-              className="px-8 py-2 bg-[#4ca9ff] hover:bg-[#3d8ad9] disabled:bg-zinc-600 text-white font-medium rounded transition-colors text-sm"
+              className="px-8 py-2 bg-[#4ca9ff] hover:bg-[#3d8ad9] disabled:bg-zinc-400 text-white font-medium rounded transition-colors text-sm"
             >
               {isDeleting ? "..." : "OK"}
             </button>
             <button
               onClick={() => setDeleteDialogOpen(false)}
-              className="px-8 py-2 bg-[#3e4655] hover:bg-[#4a5466] text-zinc-300 font-medium rounded transition-colors text-sm"
+              className="px-8 py-2 bg-zinc-200 hover:bg-zinc-300 dark:bg-[#3e4655] dark:hover:bg-[#4a5466] text-zinc-700 dark:text-zinc-300 font-medium rounded transition-colors text-sm"
             >
               Cancel
             </button>
@@ -235,55 +277,122 @@ export default function CameraTablePage() {
                     onChange={toggleSelectAll}
                   />
                 </th>
-                <th className="w-16 px-4 py-3 text-xs font-semibold text-zinc-500 dark:text-zinc-400 border-r border-zinc-200 dark:border-zinc-800">{t("id")}</th>
-                <th 
-                  className="w-48 px-4 py-3 text-xs font-semibold text-zinc-500 dark:text-zinc-400 cursor-pointer hover:bg-zinc-200 dark:hover:bg-zinc-800 group border-r border-zinc-200 dark:border-zinc-800"
-                  onClick={() => handleSort('path')}
-                >
-                  <div className="flex items-center gap-1">
-                    {t("ipAddress") || "IP Address"}
-                    <div className="flex flex-col opacity-30 group-hover:opacity-100">
-                      <ChevronUp className={`w-3 h-3 -mb-1 ${sortConfig.key === 'path' && sortConfig.direction === 'asc' ? 'text-indigo-600' : ''}`} />
-                      <ChevronDown className={`w-3 h-3 ${sortConfig.key === 'path' && sortConfig.direction === 'desc' ? 'text-indigo-600' : ''}`} />
+                {columnVisibility.id && (
+                  <th className="w-16 px-4 py-3 text-xs font-semibold text-zinc-500 dark:text-zinc-400 border-r border-zinc-200 dark:border-zinc-800">{t("id")}</th>
+                )}
+                {columnVisibility.ipAddress && (
+                  <th 
+                    className="w-48 px-4 py-3 text-xs font-semibold text-zinc-500 dark:text-zinc-400 cursor-pointer hover:bg-zinc-200 dark:hover:bg-zinc-800 group border-r border-zinc-200 dark:border-zinc-800"
+                    onClick={() => handleSort('path')}
+                  >
+                    <div className="flex items-center gap-1">
+                      {t("ipAddress") || "IP Address"}
+                      <div className="flex flex-col opacity-30 group-hover:opacity-100">
+                        <ChevronUp className={`w-3 h-3 -mb-1 ${sortConfig.key === 'path' && sortConfig.direction === 'asc' ? 'text-indigo-600' : ''}`} />
+                        <ChevronDown className={`w-3 h-3 ${sortConfig.key === 'path' && sortConfig.direction === 'desc' ? 'text-indigo-600' : ''}`} />
+                      </div>
                     </div>
-                  </div>
-                </th>
-                <th className="w-48 px-4 py-3 text-xs font-semibold text-zinc-500 dark:text-zinc-400 border-r border-zinc-200 dark:border-zinc-800">{t("cameraName")}</th>
-                <th className="w-48 px-4 py-3 text-xs font-semibold text-zinc-500 dark:text-zinc-400 border-r border-zinc-200 dark:border-zinc-800">
-                  <div className="flex items-center gap-2">
-                    {t("type")}
-                    <select 
-                      className="bg-transparent border-none text-[10px] p-0 focus:ring-0 cursor-pointer text-indigo-500"
-                      value={deviceTypeFilter}
-                      onChange={(e) => setDeviceTypeFilter(e.target.value)}
+                  </th>
+                )}
+                {columnVisibility.cameraName && (
+                  <th className="w-48 px-4 py-3 text-xs font-semibold text-zinc-500 dark:text-zinc-400 border-r border-zinc-200 dark:border-zinc-800">{t("cameraName")}</th>
+                )}
+                {columnVisibility.model && (
+                  <th className="w-40 px-4 py-3 text-xs font-semibold text-zinc-500 dark:text-zinc-400 border-r border-zinc-200 dark:border-zinc-800">{t("cameraModel") || "Model"}</th>
+                )}
+                {columnVisibility.type && (
+                  <th className="w-48 px-4 py-3 text-xs font-semibold text-zinc-500 dark:text-zinc-400 border-r border-zinc-200 dark:border-zinc-800">
+                    <div className="flex items-center gap-2">
+                      {t("type")}
+                      <select 
+                        className="bg-transparent border-none text-[10px] p-0 focus:ring-0 cursor-pointer text-indigo-500"
+                        value={deviceTypeFilter}
+                        onChange={(e) => setDeviceTypeFilter(e.target.value)}
+                      >
+                        {deviceTypes.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                      </select>
+                    </div>
+                  </th>
+                )}
+                {columnVisibility.status && (
+                  <th className="w-40 px-4 py-3 text-xs font-semibold text-zinc-500 dark:text-zinc-400 border-r border-zinc-200 dark:border-zinc-800">
+                    <div className="flex items-center gap-2">
+                      {t("status")}
+                      <select 
+                        className="bg-transparent border-none text-[10px] p-0 focus:ring-0 cursor-pointer text-indigo-500"
+                        value={statusFilter}
+                        onChange={(e) => setStatusFilter(e.target.value)}
+                      >
+                        {statusOptions.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                      </select>
+                    </div>
+                  </th>
+                )}
+                {columnVisibility.offlineReason && (
+                  <th className="w-48 px-4 py-3 text-xs font-semibold text-zinc-500 dark:text-zinc-400 border-r border-zinc-200 dark:border-zinc-800">Offline Reason</th>
+                )}
+                {columnVisibility.mapLocation && (
+                  <th className="w-64 px-4 py-3 text-xs font-semibold text-zinc-500 dark:text-zinc-400 border-r border-zinc-200 dark:border-zinc-800">Map Location</th>
+                )}
+                {columnVisibility.actions && (
+                  <th className="w-32 px-4 py-3 text-xs font-semibold text-zinc-500 dark:text-zinc-400 text-right border-r border-zinc-200 dark:border-zinc-800">{t("actions")}</th>
+                )}
+                <th className="w-10 px-4 py-3 relative">
+                  <button 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setShowColumnFilter(!showColumnFilter);
+                    }}
+                    className="hover:bg-zinc-200 dark:hover:bg-zinc-800 p-1 rounded transition-colors"
+                  >
+                    <Filter className="w-3.5 h-3.5 text-zinc-400" />
+                  </button>
+
+                  {showColumnFilter && (
+                    <div 
+                      ref={filterRef}
+                      className="absolute right-0 top-full mt-1 w-56 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg shadow-xl z-50 p-2"
+                      onClick={(e) => e.stopPropagation()}
                     >
-                      {deviceTypes.map(opt => <option key={opt} value={opt}>{opt}</option>)}
-                    </select>
-                  </div>
-                </th>
-                <th className="w-40 px-4 py-3 text-xs font-semibold text-zinc-500 dark:text-zinc-400 border-r border-zinc-200 dark:border-zinc-800">
-                  <div className="flex items-center gap-2">
-                    {t("status")}
-                    <select 
-                      className="bg-transparent border-none text-[10px] p-0 focus:ring-0 cursor-pointer text-indigo-500"
-                      value={statusFilter}
-                      onChange={(e) => setStatusFilter(e.target.value)}
-                    >
-                      {statusOptions.map(opt => <option key={opt} value={opt}>{opt}</option>)}
-                    </select>
-                  </div>
-                </th>
-                <th className="w-48 px-4 py-3 text-xs font-semibold text-zinc-500 dark:text-zinc-400 border-r border-zinc-200 dark:border-zinc-800">Offline Reason</th>
-                <th className="w-32 px-4 py-3 text-xs font-semibold text-zinc-500 dark:text-zinc-400 text-right border-r border-zinc-200 dark:border-zinc-800">{t("actions")}</th>
-                <th className="w-10 px-4 py-3">
-                  <Filter className="w-3.5 h-3.5 text-zinc-400" />
+                      <div className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider px-2 py-1 mb-1">Display Columns</div>
+                      <div className="max-h-64 overflow-y-auto">
+                        {[
+                          { key: 'id', label: t("id") },
+                          { key: 'ipAddress', label: t("ipAddress") || "IP Address" },
+                          { key: 'cameraName', label: t("cameraName") },
+                          { key: 'model', label: t("cameraModel") || 'Model' },
+                          { key: 'type', label: t("type") },
+                          { key: 'status', label: t("status") },
+                          { key: 'offlineReason', label: t("offlineReason") || 'Offline Reason' },
+                          { key: 'mapLocation', label: t("location") || 'Map Location' },
+                          { key: 'actions', label: t("actions") },
+                        ].map((col) => (
+                          <label 
+                            key={col.key}
+                            className="flex items-center gap-2 px-2 py-1.5 hover:bg-zinc-50 dark:hover:bg-zinc-800 rounded cursor-pointer transition-colors group"
+                          >
+                            <div className={`w-4 h-4 rounded border flex items-center justify-center transition-colors ${columnVisibility[col.key] ? 'bg-indigo-600 border-indigo-600' : 'border-zinc-300 dark:border-zinc-700'}`}>
+                              {columnVisibility[col.key] && <Check className="w-3 h-3 text-white" />}
+                            </div>
+                            <input 
+                              type="checkbox"
+                              className="hidden"
+                              checked={columnVisibility[col.key]}
+                              onChange={() => toggleColumn(col.key)}
+                            />
+                            <span className="text-sm text-zinc-600 dark:text-zinc-300 group-hover:text-zinc-900 dark:group-hover:text-white">{col.label}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
               {loading ? (
                 <tr>
-                  <td colSpan={9} className="px-6 py-20 text-center">
+                  <td colSpan={visibleColumnCount} className="px-6 py-20 text-center">
                     <div className="flex items-center justify-center gap-2 text-zinc-500">
                       <div className="w-4 h-4 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
                       Loading...
@@ -292,7 +401,7 @@ export default function CameraTablePage() {
                 </tr>
               ) : filteredAndSortedCameras.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="px-6 py-20 text-center text-zinc-500 italic">
+                  <td colSpan={visibleColumnCount} className="px-6 py-20 text-center text-zinc-500 italic">
                     No records found
                   </td>
                 </tr>
@@ -307,48 +416,89 @@ export default function CameraTablePage() {
                         onChange={() => toggleSelect(cam.id)}
                       />
                     </td>
-                    <td className="px-4 py-3 text-sm text-zinc-500">#{cam.id}</td>
-                    <td className="px-4 py-3 text-sm font-medium text-zinc-600 dark:text-zinc-300 truncate">
-                      {cam.displayIp}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-zinc-600 dark:text-zinc-300 truncate">
-                      {cam.name}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-zinc-500">
-                      {cam.type}
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-1.5">
-                        <span className={`w-2 h-2 rounded-full ${cam.status === 'active' ? 'bg-emerald-500' : 'bg-red-500'}`} />
-                        <span className={`text-sm ${cam.status === 'active' ? 'text-emerald-600 dark:text-emerald-500' : 'text-red-600 dark:text-red-500'}`}>
-                          {cam.status === 'active' ? 'Online' : 'Offline'}
-                        </span>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 text-sm text-zinc-400 italic">
-                      {cam.status === 'inactive' || cam.status === 'offline' ? 'Connection timeout' : '-'}
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      <div className="flex items-center justify-end gap-3 text-zinc-400">
-                        <Link 
-                          href={`/settings/camera/table/edit?id=${cam.id}`}
-                          className="hover:text-indigo-600 transition-colors" 
-                          title="Edit"
-                        >
-                          <Pencil className="w-4 h-4" />
-                        </Link>
-                        <button className="hover:text-indigo-600 transition-colors" title="View">
-                          <Globe className="w-4 h-4" />
-                        </button>
-                        <button 
-                          className="hover:text-rose-600 transition-colors" 
-                          title="Delete"
-                          onClick={() => handleDeleteClick([cam.id])}
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </td>
+                    {columnVisibility.id && (
+                      <td className="px-4 py-3 text-sm text-zinc-500">#{cam.id}</td>
+                    )}
+                    {columnVisibility.ipAddress && (
+                      <td className="px-4 py-3 text-sm font-medium text-zinc-600 dark:text-zinc-300 truncate">
+                        {cam.displayIp}
+                      </td>
+                    )}
+                    {columnVisibility.cameraName && (
+                      <td className="px-4 py-3 text-sm text-zinc-600 dark:text-zinc-300 truncate">
+                        {cam.name}
+                      </td>
+                    )}
+                    {columnVisibility.model && (
+                      <td className="px-4 py-3 text-sm text-zinc-500 truncate">
+                        {cam.model || "-"}
+                      </td>
+                    )}
+                    {columnVisibility.type && (
+                      <td className="px-4 py-3 text-sm text-zinc-500">
+                        {cam.type}
+                      </td>
+                    )}
+                    {columnVisibility.status && (
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-1.5">
+                          <span className={`w-2 h-2 rounded-full ${cam.status === 'active' ? 'bg-emerald-500' : 'bg-red-500'}`} />
+                          <span className={`text-sm ${cam.status === 'active' ? 'text-emerald-600 dark:text-emerald-500' : 'text-red-600 dark:text-red-500'}`}>
+                            {cam.status === 'active' ? 'Online' : 'Offline'}
+                          </span>
+                        </div>
+                      </td>
+                    )}
+                    {columnVisibility.offlineReason && (
+                      <td className="px-4 py-3 text-sm text-zinc-400 italic">
+                        {cam.status === 'inactive' ? 'Connection timeout' : '-'}
+                      </td>
+                    )}
+                    {columnVisibility.mapLocation && (
+                      <td className="px-4 py-3 text-sm">
+                        {cam.location ? (
+                          <div className="flex flex-col">
+                            <span className="text-zinc-700 dark:text-zinc-200 font-medium truncate" title={cam.location}>
+                              {cam.location}
+                            </span>
+                            <span className="text-[10px] text-zinc-500 font-mono">
+                              {cam.lat?.toFixed(4)}, {cam.lng?.toFixed(4)}
+                            </span>
+                          </div>
+                        ) : (
+                          <span className="text-zinc-400 italic">-</span>
+                        )}
+                      </td>
+                    )}
+                    {columnVisibility.actions && (
+                      <td className="px-4 py-3 text-right">
+                        <div className="flex items-center justify-end gap-3 text-zinc-400">
+                          <Link 
+                            href={`/settings/camera/table/edit?id=${cam.id}`}
+                            className="hover:text-indigo-600 transition-colors" 
+                            title="Edit"
+                          >
+                            <Pencil className="w-4 h-4" />
+                          </Link>
+                          <a 
+                            href={`http://${cam.displayIp}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="hover:text-indigo-600 transition-colors" 
+                            title="Open in browser"
+                          >
+                            <Globe className="w-4 h-4" />
+                          </a>
+                          <button 
+                            className="hover:text-rose-600 transition-colors" 
+                            title="Delete"
+                            onClick={() => handleDeleteClick([cam.id])}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </td>
+                    )}
                     <td className="px-4 py-3"></td>
                   </tr>
                 ))

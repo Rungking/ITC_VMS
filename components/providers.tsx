@@ -109,8 +109,29 @@ export function Providers({ children }: { children: React.ReactNode }) {
       const res = await fetch("/api/zm");
       const data = await res.json();
       if (data.success) {
+        // Load map decorations from localStorage
+        let mapPositions: any = {};
+        try {
+          const raw = localStorage.getItem("map-camera-positions");
+          if (raw) mapPositions = JSON.parse(raw);
+        } catch (e) {
+          console.error("Failed to parse map positions", e);
+        }
+
         setCameras((prev) => {
-          const newCameras = data.cameras ?? [];
+          const newCameras = (data.cameras ?? []).map((cam: Camera) => {
+            const extra = mapPositions[cam.id];
+            if (extra) {
+              return {
+                ...cam,
+                lat: extra.lat,
+                lng: extra.lng,
+                location: extra.location,
+                model: extra.model,
+              };
+            }
+            return cam;
+          });
           
           // ถ้าความยาวไม่เท่ากัน ให้เปลี่ยนเลย
           if (prev.length !== newCameras.length) return newCameras;
@@ -121,7 +142,11 @@ export function Providers({ children }: { children: React.ReactNode }) {
             return (
               cam.id === nextCam.id &&
               cam.status === nextCam.status &&
-              cam.streamUrl === nextCam.streamUrl
+              cam.streamUrl === nextCam.streamUrl &&
+              cam.lat === nextCam.lat &&
+              cam.lng === nextCam.lng &&
+              cam.location === nextCam.location &&
+              cam.model === nextCam.model
             );
           });
 

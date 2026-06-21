@@ -11,6 +11,7 @@ export default function AddCameraPage() {
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     "Monitor[Name]": "",
+    "Monitor[Model]": "",
     "Monitor[Type]": "Ffmpeg",
     "Monitor[Function]": "Mocord",
     "Monitor[Enabled]": "1",
@@ -89,6 +90,18 @@ export default function AddCameraPage() {
 
       const result = await res.json();
       if (result.success) {
+        // Save model to metadata if provided
+        const monitorId = result.monitorId || (result.message && result.message.match(/ID (\d+)/)?.[1]);
+        if (monitorId && formData["Monitor[Model]"]) {
+          const raw = localStorage.getItem("map-camera-positions");
+          const metadata = raw ? JSON.parse(raw) : {};
+          metadata[monitorId] = {
+            ...metadata[monitorId],
+            model: formData["Monitor[Model]"]
+          };
+          localStorage.setItem("map-camera-positions", JSON.stringify(metadata));
+        }
+
         router.push("/settings/camera/table");
         router.refresh();
       } else {
@@ -146,19 +159,34 @@ export default function AddCameraPage() {
             </div>
 
             <div className="grid grid-cols-1 gap-6">
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
-                  {t("cameraName") || "Camera Name"}
-                </label>
-                <input
-                  type="text"
-                  name="Monitor[Name]"
-                  value={formData["Monitor[Name]"]}
-                  onChange={handleChange}
-                  placeholder="e.g. Front Gate IPC"
-                  className="w-full px-4 py-2 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
-                  required
-                />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                    {t("cameraName") || "Camera Name"}
+                  </label>
+                  <input
+                    type="text"
+                    name="Monitor[Name]"
+                    value={formData["Monitor[Name]"]}
+                    onChange={handleChange}
+                    placeholder="e.g. Front Gate IPC"
+                    className="w-full px-4 py-2 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                    {t("cameraModel") || "Model"}
+                  </label>
+                  <input
+                    type="text"
+                    name="Monitor[Model]"
+                    value={formData["Monitor[Model]"]}
+                    onChange={handleChange}
+                    placeholder="e.g. Hikvision, Dahua..."
+                    className="w-full px-4 py-2 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+                  />
+                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">

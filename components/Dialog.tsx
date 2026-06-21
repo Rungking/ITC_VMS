@@ -51,7 +51,7 @@ export function DialogContent({
 }: React.HTMLAttributes<HTMLDivElement>) {
   return (
     <div
-      className={`relative mx-auto rounded-xl border border-zinc-800 shadow-2xl ${className ?? ""}`}
+      className={`relative mx-auto rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-2xl ${className ?? ""}`}
       onClick={(e) => e.stopPropagation()}
       {...props}
     >

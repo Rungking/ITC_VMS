@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect } from "react";
-import { useAppContext, useLanguage } from "@/components/providers";
+import { useAppContext, useLanguage, useTheme } from "@/components/providers";
 import { useStreamVerification } from "@/hooks/use-stream-verification";
 import { 
   PieChart, 
@@ -53,6 +53,7 @@ function StatusUpdater({
 export default function CameraOverviewPage() {
   const { cameras, loading, updateCameraStatus } = useAppContext();
   const { t } = useLanguage();
+  const { theme } = useTheme();
   const [isMounted, setIsMounted] = React.useState(false);
   
   React.useEffect(() => {
@@ -165,10 +166,10 @@ export default function CameraOverviewPage() {
                 </Pie>
                 <Tooltip 
                   contentStyle={{ 
-                    backgroundColor: '#18181b', 
-                    border: 'none', 
+                    backgroundColor: theme === "dark" ? '#18181b' : '#ffffff',
+                    border: theme === "dark" ? 'none' : '1px solid #e4e4e7',
                     borderRadius: '12px',
-                    color: '#fff'
+                    color: theme === "dark" ? '#fff' : '#18181b',
                   }} 
                 />
                 <Legend verticalAlign="bottom" height={36}/>

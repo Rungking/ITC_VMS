@@ -16,6 +16,7 @@ function EditCameraForm() {
   
   const [formData, setFormData] = useState({
     "Monitor[Name]": "",
+    "Monitor[Model]": "",
     "Monitor[Type]": "Ffmpeg",
     "Monitor[Function]": "Mocord",
     "Monitor[Enabled]": "1",
@@ -58,12 +59,17 @@ function EditCameraForm() {
   };
 
   useEffect(() => {
-    if (cameraId && cameras.length > 0) {
+    if (!cameraId) {
+      setFetching(false);
+      return;
+    }
+    if (cameras.length > 0) {
       const cam = cameras.find(c => c.id === cameraId);
       if (cam) {
         // Find the matching ZM monitor details if possible, or use existing camera data
         setFormData({
           "Monitor[Name]": cam.name || "",
+          "Monitor[Model]": cam.model || "",
           "Monitor[Type]": "Ffmpeg", // ZM defaults
           "Monitor[Function]": "Mocord",
           "Monitor[Enabled]": cam.status === "active" ? "1" : "0",
@@ -103,6 +109,17 @@ function EditCameraForm() {
 
       const result = await res.json();
       if (result.success) {
+        // Save model to metadata
+        if (cameraId) {
+          const raw = localStorage.getItem("map-camera-positions");
+          const metadata = raw ? JSON.parse(raw) : {};
+          metadata[cameraId] = {
+            ...metadata[cameraId],
+            model: formData["Monitor[Model]"]
+          };
+          localStorage.setItem("map-camera-positions", JSON.stringify(metadata));
+        }
+
         router.push("/settings/camera/table");
         router.refresh();
       } else {
@@ -120,6 +137,14 @@ function EditCameraForm() {
     return (
       <div className="flex items-center justify-center py-20">
         <div className="w-8 h-8 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  if (!cameraId) {
+    return (
+      <div className="flex items-center justify-center py-20 text-zinc-500">
+        No camera ID specified.
       </div>
     );
   }
@@ -168,19 +193,34 @@ function EditCameraForm() {
             </div>
 
             <div className="grid grid-cols-1 gap-6">
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
-                  {t("cameraName") || "Camera Name"}
-                </label>
-                <input
-                  type="text"
-                  name="Monitor[Name]"
-                  value={formData["Monitor[Name]"]}
-                  onChange={handleChange}
-                  placeholder="e.g. Front Gate IPC"
-                  className="w-full px-4 py-2 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
-                  required
-                />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                    {t("cameraName") || "Camera Name"}
+                  </label>
+                  <input
+                    type="text"
+                    name="Monitor[Name]"
+                    value={formData["Monitor[Name]"]}
+                    onChange={handleChange}
+                    placeholder="e.g. Front Gate IPC"
+                    className="w-full px-4 py-2 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                    {t("cameraModel") || "Model"}
+                  </label>
+                  <input
+                    type="text"
+                    name="Monitor[Model]"
+                    value={formData["Monitor[Model]"]}
+                    onChange={handleChange}
+                    placeholder="e.g. Hikvision, Dahua..."
+                    className="w-full px-4 py-2 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+                  />
+                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
