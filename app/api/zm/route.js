@@ -37,6 +37,8 @@ export async function GET() {
       { cache: "no-store" }
     );
 
+    console.log("[/api/zm] Fetching monitors from ZoneMinder:", monitorsRes.status, monitorsRes.statusText);
+
     if (!monitorsRes.ok) {
       return NextResponse.json(
         { success: false, error: "Failed to fetch monitors" },
@@ -70,12 +72,12 @@ export async function GET() {
       // Primary criteria for "Active":
       // - Enabled by user (Enabled: 1)
       // - Function is not "None"
-      // - Must have actual connection/data (Connected OR capturing frames OR bandwidth > 0)
+      // - Must have all 3 criteria from user: Status="Connected" AND FPS > 0 AND Bandwidth > 0
       const isEnabled = String(m.Enabled) === "1" || m.Enabled === 1;
       const functionName = String(m.Function || "").trim();
       const isFunctioning = functionName !== "None" && functionName !== "";
       
-      const isActive = isEnabled && isFunctioning && (isConnected || isCapturing || hasDataFlow);
+      const isActive = isEnabled && isFunctioning && isConnected && isCapturing && hasDataFlow;
       
       // DSS Device Type Detection Logic
       const pathStr = String(m.Path || "");

@@ -2,7 +2,6 @@
 
 import React, { useEffect } from "react";
 import { useAppContext, useLanguage, useTheme } from "@/components/providers";
-import { useStreamVerification } from "@/hooks/use-stream-verification";
 import { 
   PieChart, 
   Pie, 
@@ -11,44 +10,8 @@ import {
   Tooltip, 
   Legend 
 } from "recharts";
-import { Camera as CameraIcon, CheckCircle2, XCircle, Box, Loader2 } from "lucide-react";
+import { Box, Loader2, CheckCircle2, XCircle } from "lucide-react";
 import { Camera } from "@/types";
-
-function StatusUpdater({ 
-  camera, 
-  updateStatus 
-}: { 
-  camera: Camera, 
-  updateStatus: (id: string, status: Camera["status"]) => void 
-}) {
-  const streamUrl = camera.streamUrl;
-  const { status: verifyStatus } = useStreamVerification(streamUrl || null);
-  
-  useEffect(() => {
-    // ถ้า verifyStatus เป็น checking ให้ข้ามไปก่อน
-    if (verifyStatus === "checking") return;
-
-    // ถ้า verifyStatus เป็น active ให้อัปเดตเป็น active ทันที
-    if (verifyStatus === "active") {
-      updateStatus(camera.id, "active");
-      return;
-    }
-
-    // กรณี verifyStatus เป็น inactive
-    // ให้เช็คก่อนว่า camera.status เดิมเป็น active หรือไม่
-    // ถ้าเดิมเป็น active ให้ยอมรับค่าจาก backend (ZM) เป็นหลัก 
-    // เพื่อป้องกันกรณี fetch ตกหล่นแต่ ZM ยังบอกว่าออนไลน์อยู่
-    if (verifyStatus === "inactive") {
-      // ถ้า ZM ยังยืนยันว่า active เราจะไม่อัปเดตเป็น inactive ทันที (ป้องกัน False Offline)
-      if (camera.status === "active") {
-        return; 
-      }
-      updateStatus(camera.id, "inactive");
-    }
-  }, [verifyStatus, camera.id, updateStatus, camera.status]);
-
-  return null;
-}
 
 export default function CameraOverviewPage() {
   const { cameras, loading, updateCameraStatus } = useAppContext();
@@ -115,11 +78,6 @@ export default function CameraOverviewPage() {
 
   return (
     <div className="flex flex-col h-full space-y-6">
-      {/* วนลูปเพื่อเช็คสถานะจริงของกล้องแต่ละตัว - ไม่อัปเดตสถานะ checking เพื่อป้องกันการกระพริบ */}
-      {cameras.map(cam => (
-        <StatusUpdater key={cam.id} camera={cam} updateStatus={updateCameraStatus} />
-      ))}
-
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {stats.map((stat) => (
           <div

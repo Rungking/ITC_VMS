@@ -172,10 +172,10 @@ export function Providers({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     fetchCameras();
 
-    // เพิ่มการ Refresh ข้อมูลจาก ZM ทุกๆ 15 วินาทีแบบ Silent (ไม่แสดง Loading)
+    // เพิ่มการ Refresh ข้อมูลจาก ZM ทุกๆ 5 วินาทีแบบ Silent (ไม่แสดง Loading)
     const interval = setInterval(() => {
       fetchCameras(true);
-    }, 15000);
+    }, 5000);
 
     return () => clearInterval(interval);
   }, [fetchCameras]);
