@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTheme, useLanguage } from "./providers";
@@ -15,14 +15,12 @@ import {
   Sun,
   Moon,
   Languages,
-  Route,
   History,
   ShieldCheck,
   Monitor,
-  Camera,
   MapIcon,
+  Network,
 } from "lucide-react";
-import { motion, AnimatePresence } from "motion/react";
 import { ClientOnly } from "./ClientOnly";
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
@@ -32,9 +30,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const { user, logout, setIsLoginOpen } = useAuth();
   const { isValid, daysRemaining } = useLicense();
 
-  const [mounted, setMounted] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-  useEffect(() => setMounted(true), []);
 
   const navItems = [
     {
@@ -52,6 +48,12 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
       icon: MapIcon, // Assuming you have a Map icon, otherwise use Route or something similar
       label: t("map"),
       roles: ["root"], // User and Guest cannot access
+    },
+    {
+      href: "/topology",
+      icon: Network,
+      label: t("topology"),
+      roles: ["root", "admin", "user"],
     },
     {
       href: "/logs",

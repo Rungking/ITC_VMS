@@ -8,11 +8,12 @@ export interface User {
   id: string;
   username: string;
   role: UserRole;
+  name?: string;
 }
 
 interface AuthContextType {
   user: User | null;
-  login: (username: string, password: string) => Promise<boolean>;
+  login: (username: string, role?: UserRole, id?: string, name?: string) => Promise<boolean>;
   logout: () => void;
   isLoginOpen: boolean;
   setIsLoginOpen: (open: boolean) => void;
@@ -32,12 +33,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     id: "1",
     username: "admin",
     role: "root",
+    name: "Administrator",
   });
   const [isLoginOpen, setIsLoginOpen] = useState(false);
 
-  const login = async (username: string, _password: string): Promise<boolean> => {
+  const login = async (
+    username: string,
+    role: UserRole = "admin",
+    id = "1",
+    name = username
+  ): Promise<boolean> => {
     // TODO: replace with real API call
-    setUser({ id: "1", username, role: "admin" });
+    setUser({ id, username, role, name });
     setIsLoginOpen(false);
     return true;
   };

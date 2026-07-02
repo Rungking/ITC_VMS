@@ -6,6 +6,7 @@ import React, {
   useEffect,
   useState,
   useCallback,
+  useRef,
 } from "react";
 import { Camera } from "@/types";
 import { addLog } from "@/lib/logs";
@@ -18,7 +19,7 @@ interface AppContextType {
   cameras: Camera[];
   loading: boolean;
   error: string | null;
-  refresh: () => void;
+  refresh: (isSilent?: boolean) => void;
   updateCameraStatus: (id: string, status: Camera["status"]) => void;
 }
 
@@ -70,11 +71,14 @@ export function Providers({ children }: { children: React.ReactNode }) {
   const [error, setError] = useState<string | null>(null);
   const [language, setLanguage] = useState("th");
   const [theme, setTheme] = useState<Theme>("light");
+  const isFetchingRef = useRef(false);
 
   // Apply dark class to <html> on theme change
   useEffect(() => {
     const saved = localStorage.getItem("theme") as Theme | null;
-    if (saved) setTheme(saved);
+    if (saved) {
+      Promise.resolve().then(() => setTheme(saved));
+    }
   }, []);
 
   useEffect(() => {
@@ -103,56 +107,37 @@ export function Providers({ children }: { children: React.ReactNode }) {
   );
 
   const fetchCameras = useCallback(async (isSilent = false) => {
+    if (isFetchingRef.current) return;
+    isFetchingRef.current = true;
+    
     if (!isSilent) setLoading(true);
     setError(null);
     try {
       const res = await fetch("/api/zm");
       const data = await res.json();
       if (data.success) {
-        // Load map decorations from localStorage
-        let mapPositions: any = {};
-        try {
-          const raw = localStorage.getItem("map-camera-positions");
-          if (raw) mapPositions = JSON.parse(raw);
-        } catch (e) {
-          console.error("Failed to parse map positions", e);
-        }
+        const allDevices = (data.cameras ?? []) as Camera[];
 
         setCameras((prev) => {
-          const newCameras = (data.cameras ?? []).map((cam: Camera) => {
-            const extra = mapPositions[cam.id];
-            if (extra) {
-              return {
-                ...cam,
-                lat: extra.lat,
-                lng: extra.lng,
-                location: extra.location,
-                model: extra.model,
-              };
-            }
-            return cam;
-          });
+          if (prev.length !== allDevices.length) return allDevices;
           
-          // ถ้าความยาวไม่เท่ากัน ให้เปลี่ยนเลย
-          if (prev.length !== newCameras.length) return newCameras;
-
-          // เช็คว่ามีข้อมูลสำคัญตัวไหนเปลี่ยนไหม ถ้าไม่เปลี่ยนใช้ของเดิมเพื่อป้องกันการกระพริบ
           const isSame = prev.every((cam, idx) => {
-            const nextCam = newCameras[idx];
+            const nextCam = allDevices[idx];
             return (
-              cam.id === nextCam.id &&
-              cam.status === nextCam.status &&
-              cam.streamUrl === nextCam.streamUrl &&
-              cam.lat === nextCam.lat &&
-              cam.lng === nextCam.lng &&
-              cam.location === nextCam.location &&
-              cam.model === nextCam.model
+              cam.id === nextCam?.id && 
+              cam.status === nextCam?.status &&
+              cam.lat === nextCam?.lat &&
+              cam.lng === nextCam?.lng &&
+              cam.topoX === nextCam?.topoX &&
+              cam.topoY === nextCam?.topoY &&
+              cam.parentId === nextCam?.parentId &&
+              cam.parentPort === nextCam?.parentPort &&
+              cam.connectionType === nextCam?.connectionType
             );
           });
-
-          return isSame ? prev : newCameras;
+          return isSame ? prev : allDevices;
         });
-        
+
         if (!isSilent) {
           addLog(`${translations[language]?.camerasLoaded ?? "Cameras loaded"} (${data.cameras?.length ?? 0})`, "info");
         }
@@ -160,17 +145,23 @@ export function Providers({ children }: { children: React.ReactNode }) {
         setError(data.error ?? "Failed to load cameras");
         addLog(data.error ?? translations[language]?.loadFailed ?? "Load failed", "error");
       }
-    } catch {
-      const msg = translations[language]?.loadFailed ?? "Cannot connect to server";
-      setError(msg);
-      addLog(msg, "error");
+    } catch (err) {
+      console.error("fetchCameras error:", err);
+      // Don't show error UI for silent background refreshes if it's just a transient fetch failure
+      if (!isSilent) {
+        const msg = translations[language]?.loadFailed ?? "Cannot connect to server";
+        setError(msg);
+        addLog(msg, "error");
+      }
     } finally {
       if (!isSilent) setLoading(false);
+      isFetchingRef.current = false;
     }
   }, [language]);
 
   useEffect(() => {
-    fetchCameras();
+    // Initial fetch in a microtask to avoid synchronous setState warnings
+    Promise.resolve().then(() => fetchCameras());
 
     // เพิ่มการ Refresh ข้อมูลจาก ZM ทุกๆ 5 วินาทีแบบ Silent (ไม่แสดง Loading)
     const interval = setInterval(() => {

@@ -33,10 +33,10 @@ export function LoginDialog() {
         setUsername("");
         setPassword("");
       } else {
-        const err = await res.json();
-        setError(err.error || t("invalidCredentials"));
+        const errorData = await res.json();
+        setError(errorData.error || t("invalidCredentials"));
       }
-    } catch (err) {
+    } catch {
       setError(t("loginError"));
     } finally {
       setLoading(false);

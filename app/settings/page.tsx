@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { Camera, Map as MapIcon } from 'lucide-react';
+import { Camera, Map as MapIcon, Network } from 'lucide-react';
 
 export default function SettingsPage() {
   return (
@@ -47,6 +47,18 @@ export default function SettingsPage() {
               </div>
               <span className="mt-3 text-sm font-medium text-zinc-600 dark:text-zinc-400 group-hover:text-zinc-900 dark:group-hover:text-zinc-100 transition-colors">
                 Map
+              </span>
+            </Link>
+
+            <Link
+              href="/settings/topology"
+              className="flex flex-col items-center justify-center p-4 rounded-xl transition-all duration-200 hover:bg-zinc-100 dark:hover:bg-zinc-800/50 group text-center"
+            >
+              <div className="w-16 h-16 bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-full flex items-center justify-center shadow-md group-hover:scale-105 group-hover:border-purple-500 transition-all duration-200">
+                <Network className="w-8 h-8 text-purple-500 group-hover:text-purple-600 dark:group-hover:text-purple-400" />
+              </div>
+              <span className="mt-3 text-sm font-medium text-zinc-600 dark:text-zinc-400 group-hover:text-zinc-900 dark:group-hover:text-zinc-100 transition-colors">
+                Topology
               </span>
             </Link>
           </div>

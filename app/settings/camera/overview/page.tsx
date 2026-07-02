@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect } from "react";
+import React from "react";
 import { useAppContext, useLanguage, useTheme } from "@/components/providers";
 import { 
   PieChart, 
@@ -11,10 +11,9 @@ import {
   Legend 
 } from "recharts";
 import { Box, Loader2, CheckCircle2, XCircle } from "lucide-react";
-import { Camera } from "@/types";
 
 export default function CameraOverviewPage() {
-  const { cameras, loading, updateCameraStatus } = useAppContext();
+  const { cameras, loading } = useAppContext();
   const { t } = useLanguage();
   const { theme } = useTheme();
   const [isMounted, setIsMounted] = React.useState(false);

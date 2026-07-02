@@ -8,6 +8,7 @@ import {
   WifiOff, X, MapPin, RefreshCw, Search,
   ChevronRight, ChevronDown, GripVertical, Trash2, LocateFixed, Save,
 } from "lucide-react";
+import type L from "leaflet";
 
 type CameraPosition = { lat: number; lng: number; location?: string };
 type PositionMap = Record<string, CameraPosition>;
@@ -15,22 +16,10 @@ type PositionMap = Record<string, CameraPosition>;
 const DEFAULT_CENTER: [number, number] = [13.7563, 100.5018];
 const DEFAULT_ZOOM = 13;
 
-function loadPositions(): PositionMap {
-  try {
-    const raw = localStorage.getItem("map-camera-positions");
-    return raw ? JSON.parse(raw) : {};
-  } catch {
-    return {};
-  }
-}
-function savePositions(p: PositionMap) {
-  localStorage.setItem("map-camera-positions", JSON.stringify(p));
-}
-
-function makeCameraIcon(L: any, cam: Camera) {
+function makeCameraIcon(leaflet: typeof L, cam: Camera) {
   const isActive = cam.status === "active";
   const color = isActive ? "#4f46e5" : "#ef4444";
-  return L.divIcon({
+  return leaflet.divIcon({
     className: "",
     html: `
       <div style="position:relative;width:38px;height:46px">
@@ -44,8 +33,10 @@ function makeCameraIcon(L: any, cam: Camera) {
           width:22px;height:22px;border-radius:50%;
           background:rgba(255,255,255,.95);
           display:flex;align-items:center;justify-content:center;
-          font-size:10px;font-weight:700;color:${color};
-        ">${cam.id}</div>
+          font-size:7px;font-weight:900;color:${color};
+          text-transform:uppercase;overflow:hidden;
+          line-height:1;text-align:center;padding:1px;
+        ">${cam.type || "IPC"}</div>
         ${isActive ? `<div style="position:absolute;top:0;right:0;width:11px;height:11px;border-radius:50%;background:#10b981;border:2px solid white"></div>` : ""}
       </div>`,
     iconSize: [38, 46],
@@ -57,10 +48,10 @@ function makeCameraIcon(L: any, cam: Camera) {
 export default function MapViewSettings() {
   const { cameras, refresh: refreshCameras } = useAppContext();
 
-  const mapRef = useRef<any>(null);
+  const mapRef = useRef<L.Map | null>(null);
   const mapContainerRef = useRef<HTMLDivElement>(null);
-  const markersRef = useRef<Record<string, any>>({});
-  const LRef = useRef<any>(null);
+  const markersRef = useRef<Record<string, L.Marker>>({});
+  const LRef = useRef<typeof L | null>(null);
 
   const [positions, setPositions] = useState<PositionMap>({});
   const [selectedCamera, setSelectedCamera] = useState<Camera | null>(null);
@@ -73,8 +64,8 @@ export default function MapViewSettings() {
   const [isDragOver, setIsDragOver] = useState(false);
   const [locating, setLocating] = useState(false);
   const [locationError, setLocationError] = useState<string | null>(null);
-  const myLocationMarkerRef = useRef<any>(null);
-  const myLocationCircleRef = useRef<any>(null);
+  const myLocationMarkerRef = useRef<L.Marker | null>(null);
+  const myLocationCircleRef = useRef<L.Circle | null>(null);
 
   // -- Location Dialog State --
   const [locationDialogOpen, setLocationDialogOpen] = useState(false);
@@ -88,22 +79,55 @@ export default function MapViewSettings() {
   // ── Init Leaflet ────────────────────────────────────────────────────────
   useEffect(() => {
     import("leaflet").then((leaflet) => {
-      delete (leaflet.Icon.Default.prototype as any)._getIconUrl;
+      // @ts-expect-error - Leaflet internals
+      delete (leaflet.Icon.Default.prototype as unknown as { _getIconUrl?: unknown })._getIconUrl;
       leaflet.Icon.Default.mergeOptions({
         iconRetinaUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
         iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
         shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
       });
       LRef.current = leaflet;
-      setPositions(loadPositions());
       setLeafletLoaded(true);
     });
   }, []);
 
+  // ── Sync Positions from Database ──────────────────────────────────────────
+  useEffect(() => {
+    if (cameras.length > 0) {
+      Promise.resolve().then(() => {
+        setPositions((prev) => {
+          const next = { ...prev };
+          let changed = false;
+          cameras.forEach((cam) => {
+            if (cam.lat != null && cam.lng != null) {
+              const dbLat = Number(cam.lat);
+              const dbLng = Number(cam.lng);
+              
+              // Only update if different from current state
+              if (!next[cam.id] || next[cam.id].lat !== dbLat || next[cam.id].lng !== dbLng) {
+                next[cam.id] = { 
+                  lat: dbLat, 
+                  lng: dbLng, 
+                  location: cam.location || "" 
+                };
+                changed = true;
+              }
+            }
+          });
+          
+          if (changed) {
+            return next;
+          }
+          return prev;
+        });
+      });
+    }
+  }, [cameras]);
+
   // ── Init Map ─────────────────────────────────────────────────────────────
   useEffect(() => {
     const L = LRef.current;
-    if (!L || !mapContainerRef.current || initialized) return;
+    if (!L || !mapContainerRef.current || mapRef.current) return;
 
     const map = L.map(mapContainerRef.current, {
       center: DEFAULT_CENTER,
@@ -120,7 +144,14 @@ export default function MapViewSettings() {
 
     mapRef.current = map;
     setInitialized(true);
-    return () => { map.remove(); mapRef.current = null; };
+    
+    return () => {
+      if (mapRef.current) {
+        mapRef.current.remove();
+        mapRef.current = null;
+        setInitialized(false);
+      }
+    };
   }, [leafletLoaded]);
 
   // ── Sync Markers ──────────────────────────────────────────────────────────
@@ -129,6 +160,9 @@ export default function MapViewSettings() {
     const map = mapRef.current;
     if (!L || !map || !initialized) return;
 
+    // Use a temporary set to track which markers should stay
+    const currentCameraIds = new Set(cameras.map(c => c.id));
+    
     cameras.forEach((cam) => {
       const pos = positions[cam.id];
       if (!pos) {
@@ -139,17 +173,29 @@ export default function MapViewSettings() {
         return;
       }
 
+      // Check if marker exists and if its properties actually changed to avoid "flashing" markers
+      const existingMarker = markersRef.current[cam.id];
       const icon = makeCameraIcon(L, cam);
 
-      if (markersRef.current[cam.id]) {
-        markersRef.current[cam.id].setLatLng([pos.lat, pos.lng]);
-        markersRef.current[cam.id].setIcon(icon);
+      if (existingMarker) {
+        const currentPos = existingMarker.getLatLng();
+        if (currentPos.lat !== pos.lat || currentPos.lng !== pos.lng) {
+          existingMarker.setLatLng([pos.lat, pos.lng]);
+        }
+        // Only update icon if status changed (to avoid unnecessary DOM churn)
+        // We can check a custom property we attach
+        if ((existingMarker as any)._status !== cam.status) { // eslint-disable-line @typescript-eslint/no-explicit-any
+          existingMarker.setIcon(icon);
+          (existingMarker as any)._status = cam.status; // eslint-disable-line @typescript-eslint/no-explicit-any
+        }
       } else {
         const marker = L.marker([pos.lat, pos.lng], { icon, draggable: true });
+        (marker as any)._status = cam.status; // eslint-disable-line @typescript-eslint/no-explicit-any
 
         marker.on("click", () => setSelectedCamera(cam));
-        marker.on("dragend", (e: any) => {
-          const { lat, lng } = e.target.getLatLng();
+        marker.on("dragend", (e: L.LeafletEvent) => {
+          const target = e.target as L.Marker;
+          const { lat, lng } = target.getLatLng();
           const existing = positions[cam.id];
           setPendingLocationData({
             id: cam.id,
@@ -169,9 +215,11 @@ export default function MapViewSettings() {
     });
 
     // Remove orphan markers
-    const ids = new Set(cameras.map((c) => c.id));
     Object.keys(markersRef.current).forEach((id) => {
-      if (!ids.has(id)) { markersRef.current[id].remove(); delete markersRef.current[id]; }
+      if (!currentCameraIds.has(id)) { 
+        markersRef.current[id].remove(); 
+        delete markersRef.current[id]; 
+      }
     });
   }, [cameras, positions, initialized]);
 
@@ -204,15 +252,29 @@ export default function MapViewSettings() {
     setLocationDialogOpen(true);
   }, []);
 
-  const handleSaveLocation = useCallback(() => {
+  const handleSaveLocation = useCallback(async () => {
     if (!pendingLocationData) return;
     const { id, lat, lng, location } = pendingLocationData;
 
-    setPositions((prev) => {
-      const updated = { ...prev, [id]: { lat, lng, location } };
-      savePositions(updated);
-      return updated;
-    });
+    try {
+      const res = await fetch("/api/zm", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, lat, lng, location })
+      });
+      
+      if (res.ok) {
+        setPositions((prev) => {
+          const updated = { ...prev, [id]: { lat, lng, location } };
+          return updated;
+        });
+      } else {
+        console.error("Failed to save location to database");
+      }
+    } catch (err) {
+      console.error("Save Location Error:", err);
+    }
+
     setLocationDialogOpen(false);
     setPendingLocationData(null);
     refreshCameras(true); // Silent refresh to update global context
@@ -239,16 +301,27 @@ export default function MapViewSettings() {
     setPendingLocationData(null);
   }, [pendingLocationData, positions]);
 
-  const handleRemovePlacement = useCallback((camId: string) => {
-    setPositions((prev) => {
-      const updated = { ...prev };
-      delete updated[camId];
-      savePositions(updated);
-      return updated;
-    });
-    if (markersRef.current[camId]) {
-      markersRef.current[camId].remove();
-      delete markersRef.current[camId];
+  const handleRemovePlacement = useCallback(async (camId: string) => {
+    try {
+      const res = await fetch("/api/zm", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: camId, lat: null, lng: null, location: "" })
+      });
+      
+      if (res.ok) {
+        setPositions((prev) => {
+          const updated = { ...prev };
+          delete updated[camId];
+          return updated;
+        });
+        if (markersRef.current[camId]) {
+          markersRef.current[camId].remove();
+          delete markersRef.current[camId];
+        }
+      }
+    } catch (err) {
+      console.error("Remove Placement Error:", err);
     }
     refreshCameras(true); // Silent refresh to update global context
   }, [refreshCameras]);
@@ -257,7 +330,7 @@ export default function MapViewSettings() {
     const pos = positions[cam.id];
     if (pos && mapRef.current) {
       mapRef.current.flyTo([pos.lat, pos.lng], 16, { animate: true, duration: 1 });
-      setSelectedCamera(cam);
+      setSelectedCamera(null);
     }
   }, [positions]);
 

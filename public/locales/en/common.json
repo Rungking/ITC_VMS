@@ -46,6 +46,8 @@
   "allBrands": "All Brands",
   "dashboard": "Dashboard",
   "members": "Members",
+  "map": "Map",
+  "topology": "Topology",
   "analyticsTitle": "Analytics",
   "interactiveAnalytics": "Interactive Analytics Charts",
   "totalDetections": "Total Detections",
@@ -96,6 +98,12 @@
   "department": "Department",
   "selectLevel": "Select Level",
   "registeredVehicles": "Registered Vehicles (max 4)",
+  "add": "Add",
+  "import": "Import",
+  "export": "Export",
+  "template": "Template",
+  "moveTo": "Move To",
+  "delete": "Delete",
   "vehicle": "Vehicle",
   "saveMember": "Save Member",
   "updateMember": "Update Member",
@@ -250,5 +258,8 @@
   "connectionPath": "Connection Path",
   "type": "Type",
   "searchCameras": "Search cameras...",
-  "online": "Online"
+  "online": "Online",
+  "locationName": "Location Name",
+  "latitude": "Latitude",
+  "longitude": "Longitude"
 }

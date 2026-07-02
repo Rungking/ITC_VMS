@@ -9,11 +9,11 @@ export function useStreamVerification(streamUrl: string | null) {
 
   useEffect(() => {
     if (!streamUrl) {
-      setStatus("inactive");
+      Promise.resolve().then(() => setStatus("inactive"));
       return;
     }
 
-    setStatus("checking");
+    Promise.resolve().then(() => setStatus("checking"));
     let cancelled = false;
 
     const check = async () => {

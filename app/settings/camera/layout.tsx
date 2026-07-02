@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Camera, LayoutDashboard, TableProperties, BarChart2 } from "lucide-react";
+import { Camera, LayoutDashboard, TableProperties } from "lucide-react";
 import { useLanguage } from "@/components/providers";
 
 const getSidebarItems = (t: (key: string) => string) => [

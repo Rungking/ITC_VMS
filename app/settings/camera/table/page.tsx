@@ -15,7 +15,9 @@ import {
   Pencil,
   Globe,
   X,
-  Check
+  Check,
+  Download,
+  Upload
 } from "lucide-react";
 
 export default function CameraTablePage() {
@@ -28,30 +30,39 @@ export default function CameraTablePage() {
   const [statusFilter, setStatusFilter] = useState("ALL");
 
   // Column Visibility State
-  const [columnVisibility, setColumnVisibility] = useState<Record<string, boolean>>({
-    id: true,
-    ipAddress: true,
-    cameraName: true,
-    model: true,
-    type: true,
-    status: true,
-    offlineReason: true,
-    mapLocation: true,
-    actions: true,
+  const [columnVisibility, setColumnVisibility] = useState<Record<string, boolean>>(() => {
+    const defaultVisibility = {
+      id: true,
+      ipAddress: true,
+      cameraName: true,
+      brand: true,
+      model: true,
+      type: true,
+      status: true,
+      parentId: true,
+      offlineReason: true,
+      mapLocation: true,
+      actions: true,
+    };
+
+    if (typeof window === "undefined") {
+      return defaultVisibility;
+    }
+
+    const saved = localStorage.getItem("camera-table-columns");
+    if (!saved) {
+      return defaultVisibility;
+    }
+
+    try {
+      return { ...defaultVisibility, ...JSON.parse(saved) };
+    } catch (error) {
+      console.error("Failed to parse saved columns", error);
+      return defaultVisibility;
+    }
   });
   const [showColumnFilter, setShowColumnFilter] = useState(false);
   const filterRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const saved = localStorage.getItem("camera-table-columns");
-    if (saved) {
-      try {
-        setColumnVisibility(JSON.parse(saved));
-      } catch (e) {
-        console.error("Failed to parse saved columns", e);
-      }
-    }
-  }, []);
 
   const toggleColumn = (key: string) => {
     const newVisibility = { ...columnVisibility, [key]: !columnVisibility[key] };
@@ -74,7 +85,7 @@ export default function CameraTablePage() {
   const [idsToDelete, setIdsToDelete] = useState<string[]>([]);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  const deviceTypes = ["ALL", "DVR/XVR", "IPC", "NVR", "EVS", "Thermal Camera", "IVSS", "ANPR Device"];
+  const deviceTypes = ["ALL", "IPC", "NVR", "SWITCH", "DVR/XVR", "EVS", "Thermal Camera", "IVSS", "ANPR Device"];
   const statusOptions = ["ALL", "Online", "Offline"];
 
   const handleSort = (key: string) => {
@@ -87,12 +98,14 @@ export default function CameraTablePage() {
 
   const filteredAndSortedCameras = useMemo(() => {
     let result = [...cameras].map(cam => {
-      // ดึงเฉพาะ IP Address ออกจาก path (เช่นจาก rtsp://192.168.1.109:554/... ดึงมาเฉพาะ 192.168.1.109)
+      // ดึงเฉพาะ IP Address ออกจาก path หรือใช้ field ip/ipAddress ตรงๆ
       const pathStr = cam.path || "";
       const ipMatch = pathStr.match(/(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})/);
+      const hostIp = cam.ip || cam.ipAddress;
+      
       return {
         ...cam,
-        displayIp: ipMatch ? ipMatch[1] : (pathStr || "N/A")
+        displayIp: hostIp || (ipMatch ? ipMatch[1] : (pathStr || "N/A"))
       };
     });
 
@@ -143,6 +156,58 @@ export default function CameraTablePage() {
     setSelectedIds(prev => 
       prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
     );
+  };
+
+  const handleExport = () => {
+    if (filteredAndSortedCameras.length === 0) return;
+
+    // เลือกใช้เฉพาะข้อมูลที่เลือก (ถ้ามีการเลือกไว้) หรือทั้งหมดที่แสดงอยู่
+    const dataToExport = selectedIds.length > 0 
+      ? filteredAndSortedCameras.filter(cam => selectedIds.includes(cam.id))
+      : filteredAndSortedCameras;
+
+    // Define headers
+    const headers = [
+      "ID",
+      "IP Address",
+      "Device Name",
+      "Brand",
+      "Model",
+      "Device Type",
+      "Status",
+      "Location",
+      "Latitude",
+      "Longitude"
+    ];
+
+    // Map data to rows
+    const csvContent = [
+      headers.join(","),
+      ...dataToExport.map(cam => [
+        cam.zmId ? `#${cam.zmId}` : cam.id,
+        cam.displayIp,
+        `"${cam.name.replace(/"/g, '""')}"`,
+        `"${(cam.brand || "").replace(/"/g, '""')}"`,
+        `"${(cam.model || "").replace(/"/g, '""')}"`,
+        cam.type || "IPC",
+        cam.status === 'active' ? "Online" : "Offline",
+        `"${(cam.location || "").replace(/"/g, '""')}"`,
+        cam.lat ?? "",
+        cam.lng ?? ""
+      ].join(","))
+    ].join("\n");
+
+    // Create and download file
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `device_export_${new Date().toISOString().split('T')[0]}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   };
 
   const handleDeleteClick = (ids: string[]) => {
@@ -230,21 +295,165 @@ export default function CameraTablePage() {
           href="/settings/camera/table/add"
           className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-md transition-colors"
         >
-          <span className="text-lg font-light text-zinc-400">+</span> Add
+          <span className="text-lg font-light text-zinc-400">+</span> {t("add") || "Add"}
         </Link>
+
+        {/* --- Bulk Actions Group --- */}
+        <label className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-md transition-colors cursor-pointer">
+          <Upload className="w-4 h-4 text-zinc-500" /> {t("import") || "Import"}
+          <input 
+            type="file" 
+            accept=".csv" 
+            className="hidden" 
+            onChange={async (e) => {
+              const file = e.target.files?.[0];
+              if (!file) return;
+              
+              const reader = new FileReader();
+              reader.onload = async (event) => {
+                const text = event.target?.result as string;
+                if (!text) return;
+                
+                const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+                if (lines.length < 2) return;
+                
+                const headers = lines[0].replace(/^\uFEFF/, "").split(",").map(h => h.trim());
+                const rows = lines.slice(1);
+                
+                let successCount = 0;
+                let failCount = 0;
+
+                for (const line of rows) {
+                  const values = line.split(",").map(v => v.trim().replace(/^"|"$/g, ''));
+                  const item: any = {};
+                  headers.forEach((h, i) => {
+                    item[h] = values[i];
+                  });
+
+                  const deviceType = (item["Type (IPC|NVR|SWITCH)"] || "IPC").toUpperCase();
+                  const isSwitch = deviceType === "SWITCH";
+                  
+                  // Generate Path for Cameras
+                  let generatedPath = "";
+                  if (!isSwitch) {
+                    const b = item.Brand || "Dahua";
+                    const u = item.Username || "admin";
+                    const p = item.Password || "admin";
+                    const i = item.IP;
+                    const pt = item.Port || "554";
+                    const c = item.Channel || "1";
+                    const s = item.Subtype || "0";
+
+                    if (b === "Hikvision") {
+                      generatedPath = `rtsp://${u}:${p}@${i}:${pt}/Streaming/Channels/${c}0${Number(s) + 1}`;
+                    } else if (b === "Generic") {
+                      generatedPath = `rtsp://${u}:${p}@${i}:${pt}/live/ch${c}`;
+                    } else {
+                      generatedPath = `rtsp://${u}:${p}@${i}:${pt}/cam/realmonitor?channel=${c}&subtype=${s}`;
+                    }
+                  }
+
+                  const metadata = {
+                    name: item.Name,
+                    model: item.Model || "",
+                    type: deviceType,
+                    brand: item.Brand || "Dahua",
+                    ip: item.IP,
+                    port: item.Port || (isSwitch ? "" : "554"),
+                    username: item.Username || "admin",
+                    password: item.Password || "admin",
+                    channel: item.Channel || "1",
+                    subtype: item.Subtype || "0",
+                    path: generatedPath,
+                    location: item.Location || "",
+                    lat: parseFloat(item.Lat || "13.7563"),
+                    lng: parseFloat(item.Lng || "100.5018"),
+                    ports: item.Ports || "8",
+                    parentId: item.ParentID || null,
+                    parentPort: item.ParentPort ? parseInt(item.ParentPort) : null
+                  };
+
+                  let zmPayload = null;
+                  if (!isSwitch) {
+                    zmPayload = {
+                      "Monitor[Name]": item.Name,
+                      "Monitor[Model]": item.Model || "",
+                      "Monitor[Type]": "Ffmpeg",
+                      "Monitor[Function]": "Mocord",
+                      "Monitor[Enabled]": "1",
+                      "Monitor[Method]": "rtpRtsp",
+                      "Monitor[Width]": "640",
+                      "Monitor[Height]": "400",
+                      "Monitor[Colours]": "4",
+                      "Monitor[Path]": generatedPath
+                    };
+                  }
+
+                  try {
+                    const res = await fetch("/api/zm", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ zmData: zmPayload, metadata })
+                    });
+                    if (res.ok) successCount++;
+                    else failCount++;
+                  } catch (err) {
+                    failCount++;
+                  }
+                }
+                
+                alert(`Import complete: ${successCount} success, ${failCount} failed`);
+                refreshCameras();
+              };
+              reader.readAsText(file);
+              e.target.value = ""; 
+            }}
+          />
+        </label>
+
+        <button 
+          onClick={handleExport}
+          className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-md transition-colors"
+        >
+          <Download className="w-4 h-4 text-zinc-500" /> {t("export") || "Export"}
+        </button>
+
+        <button
+          onClick={() => {
+            const headers = ["Name", "Type (IPC|NVR|SWITCH)", "Brand", "Model", "IP", "Port", "Username", "Password", "Channel", "Subtype", "Location", "Lat", "Lng", "Ports", "ParentID", "ParentPort"];
+            const example = ["Front Gate IPC", "IPC", "Dahua", "HFW3241T", "192.168.1.108", "554", "admin", "admin", "1", "0", "Main Gate", "13.7563", "100.5018", "", "SWITCH_001", "5"];
+            const csvContent = ["\uFEFF" + headers.join(","), example.join(",")].join("\n");
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            link.href = url;
+            link.download = "device_import_template.csv";
+            link.click();
+            URL.revokeObjectURL(url);
+          }}
+          className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-md transition-colors text-indigo-600 dark:text-indigo-400"
+        >
+          <Download className="w-4 h-4" /> {t("template") || "Template"}
+        </button>
+
+        <div className="h-4 w-px bg-zinc-300 dark:bg-zinc-700 mx-1" />
+
+        {/* --- Selection Actions Group --- */}
+        <button 
+          disabled={selectedIds.length === 0}
+          className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-md transition-colors disabled:opacity-30"
+        >
+          <ExternalLink className="w-4 h-4 text-zinc-500" /> {t("moveTo") || "Move To"}
+        </button>
+
         <button 
           disabled={selectedIds.length === 0}
           onClick={() => handleDeleteClick(selectedIds)}
           className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-md transition-colors disabled:opacity-30"
         >
-          <Trash2 className="w-4 h-4 text-zinc-500" /> Delete
+          <Trash2 className="w-4 h-4 text-rose-500" /> {t("delete") || "Delete"}
         </button>
-        <button 
-          disabled={selectedIds.length === 0}
-          className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-md transition-colors disabled:opacity-30"
-        >
-          <ExternalLink className="w-4 h-4 text-zinc-500" /> Move To
-        </button>
+
         <div className="h-4 w-px bg-zinc-300 dark:bg-zinc-700 mx-1" />
         <button className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-md transition-colors">
           <Settings2 className="w-4 h-4 text-zinc-500" /> Time Zone Settings
@@ -295,10 +504,46 @@ export default function CameraTablePage() {
                   </th>
                 )}
                 {columnVisibility.cameraName && (
-                  <th className="w-48 px-4 py-3 text-xs font-semibold text-zinc-500 dark:text-zinc-400 border-r border-zinc-200 dark:border-zinc-800">{t("cameraName")}</th>
+                  <th 
+                    className="w-48 px-4 py-3 text-xs font-semibold text-zinc-500 dark:text-zinc-400 border-r border-zinc-200 dark:border-zinc-800 cursor-pointer hover:bg-zinc-200 dark:hover:bg-zinc-800 group"
+                    onClick={() => handleSort('name')}
+                  >
+                    <div className="flex items-center gap-1">
+                      {t("cameraName")}
+                      <div className="flex flex-col opacity-30 group-hover:opacity-100">
+                        <ChevronUp className={`w-3 h-3 -mb-1 ${sortConfig.key === 'name' && sortConfig.direction === 'asc' ? 'text-indigo-600' : ''}`} />
+                        <ChevronDown className={`w-3 h-3 ${sortConfig.key === 'name' && sortConfig.direction === 'desc' ? 'text-indigo-600' : ''}`} />
+                      </div>
+                    </div>
+                  </th>
+                )}
+                {columnVisibility.brand && (
+                  <th 
+                    className="w-32 px-4 py-3 text-xs font-semibold text-zinc-500 dark:text-zinc-400 border-r border-zinc-200 dark:border-zinc-800 cursor-pointer hover:bg-zinc-200 dark:hover:bg-zinc-800 group"
+                    onClick={() => handleSort('brand')}
+                  >
+                    <div className="flex items-center gap-1">
+                      {t("brand") || "Brand"}
+                      <div className="flex flex-col opacity-30 group-hover:opacity-100">
+                        <ChevronUp className={`w-3 h-3 -mb-1 ${sortConfig.key === 'brand' && sortConfig.direction === 'asc' ? 'text-indigo-600' : ''}`} />
+                        <ChevronDown className={`w-3 h-3 ${sortConfig.key === 'brand' && sortConfig.direction === 'desc' ? 'text-indigo-600' : ''}`} />
+                      </div>
+                    </div>
+                  </th>
                 )}
                 {columnVisibility.model && (
-                  <th className="w-40 px-4 py-3 text-xs font-semibold text-zinc-500 dark:text-zinc-400 border-r border-zinc-200 dark:border-zinc-800">{t("cameraModel") || "Model"}</th>
+                  <th 
+                    className="w-40 px-4 py-3 text-xs font-semibold text-zinc-500 dark:text-zinc-400 border-r border-zinc-200 dark:border-zinc-800 cursor-pointer hover:bg-zinc-200 dark:hover:bg-zinc-800 group"
+                    onClick={() => handleSort('model')}
+                  >
+                    <div className="flex items-center gap-1">
+                      {t("cameraModel") || "Model"}
+                      <div className="flex flex-col opacity-30 group-hover:opacity-100">
+                        <ChevronUp className={`w-3 h-3 -mb-1 ${sortConfig.key === 'model' && sortConfig.direction === 'asc' ? 'text-indigo-600' : ''}`} />
+                        <ChevronDown className={`w-3 h-3 ${sortConfig.key === 'model' && sortConfig.direction === 'desc' ? 'text-indigo-600' : ''}`} />
+                      </div>
+                    </div>
+                  </th>
                 )}
                 {columnVisibility.type && (
                   <th className="w-48 px-4 py-3 text-xs font-semibold text-zinc-500 dark:text-zinc-400 border-r border-zinc-200 dark:border-zinc-800">
@@ -326,6 +571,11 @@ export default function CameraTablePage() {
                         {statusOptions.map(opt => <option key={opt} value={opt}>{opt}</option>)}
                       </select>
                     </div>
+                  </th>
+                )}
+                {columnVisibility.parentId && (
+                  <th className="w-48 px-4 py-3 text-xs font-semibold text-zinc-500 dark:text-zinc-400 border-r border-zinc-200 dark:border-zinc-800">
+                    Parent Device
                   </th>
                 )}
                 {columnVisibility.offlineReason && (
@@ -360,9 +610,11 @@ export default function CameraTablePage() {
                           { key: 'id', label: t("id") },
                           { key: 'ipAddress', label: t("ipAddress") || "IP Address" },
                           { key: 'cameraName', label: t("cameraName") },
+                          { key: 'brand', label: t("brand") || 'Brand' },
                           { key: 'model', label: t("cameraModel") || 'Model' },
                           { key: 'type', label: t("type") },
                           { key: 'status', label: t("status") },
+                          { key: 'parentId', label: 'Parent Device' },
                           { key: 'offlineReason', label: t("offlineReason") || 'Offline Reason' },
                           { key: 'mapLocation', label: t("location") || 'Map Location' },
                           { key: 'actions', label: t("actions") },
@@ -417,7 +669,9 @@ export default function CameraTablePage() {
                       />
                     </td>
                     {columnVisibility.id && (
-                      <td className="px-4 py-3 text-sm text-zinc-500">#{cam.id}</td>
+                      <td className="px-4 py-3 text-sm text-zinc-500">
+                        {cam.zmId ? `#${cam.zmId}` : ""}
+                      </td>
                     )}
                     {columnVisibility.ipAddress && (
                       <td className="px-4 py-3 text-sm font-medium text-zinc-600 dark:text-zinc-300 truncate">
@@ -427,6 +681,11 @@ export default function CameraTablePage() {
                     {columnVisibility.cameraName && (
                       <td className="px-4 py-3 text-sm text-zinc-600 dark:text-zinc-300 truncate">
                         {cam.name}
+                      </td>
+                    )}
+                    {columnVisibility.brand && (
+                      <td className="px-4 py-3 text-sm text-zinc-500 truncate">
+                        {cam.brand || "-"}
                       </td>
                     )}
                     {columnVisibility.model && (
@@ -447,6 +706,22 @@ export default function CameraTablePage() {
                             {cam.status === 'active' ? 'Online' : 'Offline'}
                           </span>
                         </div>
+                      </td>
+                    )}
+                    {columnVisibility.parentId && (
+                      <td className="px-4 py-3 text-sm text-zinc-500">
+                        {cam.parentId ? (
+                          <div className="flex flex-col">
+                            <span className="font-medium text-zinc-700 dark:text-zinc-300">
+                              {cameras.find(c => c.id === cam.parentId)?.name || cam.parentId}
+                            </span>
+                            {cam.parentPort && (
+                              <span className="text-[10px] text-zinc-400">Port: {cam.parentPort}</span>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-zinc-400 italic">-</span>
+                        )}
                       </td>
                     )}
                     {columnVisibility.offlineReason && (

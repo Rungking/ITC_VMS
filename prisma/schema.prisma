@@ -1,0 +1,40 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model MonitorMetadata {
+  id           String   @id
+  name         String
+  model        String?
+  deviceType   String?  @map("device_type")
+  brand        String?
+  ipAddress    String?  @map("ip_address")
+  port         String?
+  username     String?
+  password     String?
+  channel      String?
+  subtype      String?
+  rtspPath     String?  @map("rtsp_path") @db.Text
+  locationName String?  @map("location_name")
+  latitude     Decimal? @db.Decimal(10, 8)
+  longitude    Decimal? @db.Decimal(11, 8)
+  switchPorts  Int?     @map("switch_ports")
+  parentId     String?  @map("parent_id")
+  parentPort   Int?     @map("parent_port")
+  connectionType String?  @map("connection_type")
+  topoX        Float?   @map("topo_x")
+  topoY        Float?   @map("topo_y")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  @@map("monitor_metadata")
+}

@@ -46,6 +46,8 @@
   "allBrands": "ทุกยี่ห้อ",
   "dashboard": "แดชบอร์ด",
   "members": "สมาชิก",
+  "map": "แผนที่",
+  "topology": "โครงข่าย",
   "analyticsTitle": "หน้าวิเคราะห์ข้อมูล",
   "interactiveAnalytics": "กราฟวิเคราะห์ข้อมูลแบบโต้ตอบ",
   "totalDetections": "จำนวนการตรวจจับทั้งหมด",
@@ -96,6 +98,13 @@
   "department": "แผนก/ส่วนงาน",
   "selectLevel": "เลือกระดับ",
   "registeredVehicles": "ข้อมูลรถที่ลงทะเบียน (สูงสุด 4 คัน)",
+  "add": "เพิ่ม",
+  "import": "นำเข้า",
+  "export": "ส่งออก",
+  "template": "เทมเพลต",
+  "moveTo": "ย้ายไปที่",
+  "delete": "ลบ",
+  "id": "ID",
   "vehicle": "รถคันที่",
   "saveMember": "บันทึกสมาชิก",
   "updateMember": "อัปเดตสมาชิก",
@@ -250,5 +259,8 @@
   "connectionPath": "เส้นทางการเชื่อมต่อ",
   "type": "ประเภท",
   "searchCameras": "ค้นหากล้อง...",
-  "online": "ออนไลน์"
+  "online": "ออนไลน์",
+  "locationName": "ชื่อสถานที่",
+  "latitude": "ละติจูด (Latitude)",
+  "longitude": "ลองจิจูด (Longitude)"
 }

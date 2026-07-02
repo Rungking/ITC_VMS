@@ -10,7 +10,6 @@ import {
   Maximize2,
   Minimize2,
   LayoutGrid,
-  Loader2,
 } from "lucide-react";
 import {
   Dialog,
@@ -25,30 +24,22 @@ function CameraGridItem({
   idx,
   setSelectedCamera,
   t,
-  onStatusChange,
   fullscreen = false,
 }: {
   cam: Camera;
   idx: number;
   setSelectedCamera: (cam: Camera) => void;
   t: (key: string) => string;
-  onStatusChange?: (id: string, status: string) => void;
   fullscreen?: boolean;
 }) {
   // Lock the stream URL on first mount — don't restart stream when context refreshes
-  const streamUrlRef = useRef<string | null>(null);
-  if (streamUrlRef.current === null) {
-    streamUrlRef.current = cam.streamUrl ?? (cam.port ? `http://localhost:${cam.port}` : null);
-  }
-  const streamUrl = streamUrlRef.current;
+  const streamUrl = React.useMemo(() => {
+    return cam.streamUrl ?? (cam.port ? `http://localhost:${cam.port}` : null);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const [imgKey, setImgKey] = useState(0); // increment to force img reload
   const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  // Report status from cam.status (source of truth from AppContext)
-  useEffect(() => {
-    if (cam.status) onStatusChange?.(cam.id, cam.status);
-  }, [cam.id, cam.status, onStatusChange]);
 
   const handleError = useCallback(() => {
     // Auto-retry after 5 seconds
@@ -94,7 +85,7 @@ function CameraGridItem({
           // eslint-disable-next-line @next/next/no-img-element
           <img
             key={imgKey}
-            src={streamUrl ?? "/placeholder-v.png"}
+            src={streamUrl || "/placeholder-v.png"}
             alt={cam.name}
             className="absolute inset-0 w-full h-full object-contain opacity-80 group-hover:opacity-100 transition-opacity duration-500"
             referrerPolicy="no-referrer"
@@ -159,9 +150,14 @@ export default function MonitorPage() {
   const [selectedCamera, setSelectedCamera] = useState<Camera | null>(null);
   const [gridColumns, setGridColumns] = useState(4);
   const [gridInitialized, setGridInitialized] = useState(false);
-  const [cameraStatuses, setCameraStatuses] = useState<Record<string, string>>({});
   const [isFullscreen, setIsFullscreen] = useState(false);
   const monitorRef = useRef<HTMLDivElement>(null);
+  const monitorCameras = cameras.filter(
+    (cam) => (cam.type ?? "").toUpperCase() !== "SWITCH"
+  );
+  const selectedMonitorCamera = selectedCamera
+    ? monitorCameras.find((cam) => cam.id === selectedCamera.id) ?? null
+    : null;
 
   const toggleFullscreen = useCallback(() => {
     if (!document.fullscreenElement) {
@@ -177,21 +173,22 @@ export default function MonitorPage() {
     return () => document.removeEventListener("fullscreenchange", onFSChange);
   }, []);
 
-  const handleStatusChange = React.useCallback((id: string, status: string) => {
-    setCameraStatuses((prev) => (prev[id] === status ? prev : { ...prev, [id]: status }));
-  }, []);
-
-  const activeStreamCount = Object.values(cameraStatuses).filter((s) => s === "active").length;
-  const gridRows = Math.ceil(Math.max(cameras.length, 1) / gridColumns);
+  const activeStreamCount = monitorCameras.filter(
+    (cam) => cam.status === "active"
+  ).length;
+  const gridRows = Math.ceil(Math.max(monitorCameras.length, 1) / gridColumns);
 
   // Load preferences from localStorage on mount
   useEffect(() => {
     const savedGrid = localStorage.getItem("monitor-grid-columns");
     if (savedGrid) {
       const num = parseInt(savedGrid, 10);
-      if (num >= 1 && num <= 6) setGridColumns(num);
+      if (num >= 1 && num <= 6) {
+        // Move to microtask to avoid synchronous setState warning
+        Promise.resolve().then(() => setGridColumns(num));
+      }
     }
-    setGridInitialized(true);
+    Promise.resolve().then(() => setGridInitialized(true));
   }, []);
 
   // Save grid preference when it changes (only after initial load)
@@ -236,7 +233,7 @@ export default function MonitorPage() {
               </div>
               <div className="flex items-center space-x-2 text-sm text-zinc-400">
                 <Activity className="w-4 h-4 animate-pulse text-emerald-500" />
-                <span>{activeStreamCount} / {cameras.length} {t("activeStreams")}</span>
+                <span>{activeStreamCount} / {monitorCameras.length} {t("activeStreams")}</span>
               </div>
             </div>
           </div>
@@ -283,7 +280,7 @@ export default function MonitorPage() {
             <div className="flex items-center space-x-2 text-sm text-zinc-500 dark:text-zinc-400">
               <Activity className="w-4 h-4 animate-pulse text-emerald-500" />
               <span>
-                {activeStreamCount} / {cameras.length} {t("activeStreams")}
+                {activeStreamCount} / {monitorCameras.length} {t("activeStreams")}
               </span>
             </div>
           </div>
@@ -308,21 +305,20 @@ export default function MonitorPage() {
             }`}
             style={isFullscreen ? { gridTemplateRows: `repeat(${gridRows}, 1fr)` } : undefined}
           >
-            {cameras.length === 0 ? (
+            {monitorCameras.length === 0 ? (
               <div className="col-span-full flex flex-col items-center justify-center py-20 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl shadow-sm text-zinc-500">
                 <Video className="w-12 h-12 mb-4 opacity-20" />
                 <h3 className="text-lg font-medium">{t("noCamerasFound")}</h3>
                 <p className="text-sm opacity-60">{t("checkConfig")}</p>
               </div>
             ) : (
-              cameras.map((cam, idx) => (
+              monitorCameras.map((cam, idx) => (
                 <CameraGridItem
                   key={cam.id}
                   cam={cam}
                   idx={idx}
                   setSelectedCamera={setSelectedCamera}
                   t={t}
-                  onStatusChange={handleStatusChange}
                   fullscreen={isFullscreen}
                 />
               ))
@@ -333,19 +329,19 @@ export default function MonitorPage() {
 
       {/* Fullscreen Video Dialog */}
       <Dialog
-        open={!!selectedCamera}
+        open={!!selectedMonitorCamera}
         onOpenChange={(open) => !open && setSelectedCamera(null)}
       >
         <DialogContent className="max-w-6xl w-[90vw] p-0 overflow-hidden bg-black border-zinc-800">
-          {selectedCamera && (
+          {selectedMonitorCamera && (
             <div className="relative flex flex-col h-full">
               <DialogHeader className="p-4 bg-zinc-900/50 backdrop-blur-md border-b border-zinc-800 absolute top-0 left-0 right-0 z-10">
                 <div className="flex items-center justify-between">
                   <DialogTitle className="text-white flex items-center space-x-3">
                     <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                    <span>{selectedCamera.name}</span>
+                    <span>{selectedMonitorCamera.name}</span>
                     <span className="text-xs font-normal text-zinc-400">
-                      • {selectedCamera.port ?? selectedCamera.id}
+                      • {selectedMonitorCamera.port ?? selectedMonitorCamera.id}
                     </span>
                   </DialogTitle>
                 </div>
@@ -355,12 +351,12 @@ export default function MonitorPage() {
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={
-                    selectedCamera.streamUrl ??
-                    (selectedCamera.port
-                      ? `http://localhost:${selectedCamera.port}`
+                    selectedMonitorCamera.streamUrl ??
+                    (selectedMonitorCamera.port
+                      ? `http://localhost:${selectedMonitorCamera.port}`
                       : "/placeholder-v.png")
                   }
-                  alt={selectedCamera.name}
+                  alt={selectedMonitorCamera.name}
                   className="absolute inset-0 w-full h-full object-contain"
                   referrerPolicy="no-referrer"
                 />
