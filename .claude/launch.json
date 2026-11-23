@@ -3,24 +3,24 @@
   "configurations": [
     {
       "name": "api",
-      "runtimeExecutable": "D:\\1_ITC_WithClaude\\CCTV\\backend\\.venv\\Scripts\\python.exe",
+      "runtimeExecutable": "D:\\1_ITC_WithClaude\\3_ITC_VMS\\backend\\.venv\\Scripts\\python.exe",
       "runtimeArgs": ["-m", "uvicorn", "app.main:app", "--port", "8000"],
-      "cwd": "D:\\1_ITC_WithClaude\\CCTV\\backend",
+      "cwd": "D:\\1_ITC_WithClaude\\3_ITC_VMS\\backend",
       "port": 8000
     },
     {
       "name": "mediamtx",
-      "runtimeExecutable": "D:\\1_ITC_WithClaude\\CCTV\\tools\\mediamtx\\mediamtx.exe",
-      "runtimeArgs": ["D:\\1_ITC_WithClaude\\CCTV\\deploy\\mediamtx.dev.yml"],
-      "cwd": "D:\\1_ITC_WithClaude\\CCTV",
+      "runtimeExecutable": "D:\\1_ITC_WithClaude\\3_ITC_VMS\\tools\\mediamtx\\mediamtx.exe",
+      "runtimeArgs": ["D:\\1_ITC_WithClaude\\3_ITC_VMS\\deploy\\mediamtx.dev.yml"],
+      "cwd": "D:\\1_ITC_WithClaude\\3_ITC_VMS",
       "port": 8889
     },
     {
       "name": "web",
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev"],
-      "cwd": "D:\\1_ITC_WithClaude\\CCTV\\frontend",
-      "port": 5173
+      "cwd": "D:\\1_ITC_WithClaude\\3_ITC_VMS\\web",
+      "port": 3000
     }
   ]
 }
