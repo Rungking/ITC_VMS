@@ -1,0 +1,33 @@
+# Secrets
+.env
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+*.db
+
+# Node
+node_modules/
+dist/
+
+# Vendor SDKs (licensed binaries, large) - keep outside git
+Z_ExternalFile/
+backend/vendor/*.whl
+tools/
+sdk_log.log
+probe.mp4
+
+# Runtime data
+deploy/recordings/
+backend/*.jpg
+
+# OS / IDE
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

@@ -1,0 +1,62 @@
+# CCTV Platform - single-server deployment.
+#   cp .env.example .env   (then fill in the secrets)
+#   docker compose up -d --build
+# Web UI: http://<server-ip>/
+
+name: cctv
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: cctv
+      POSTGRES_USER: cctv
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U cctv -d cctv"]
+      interval: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+
+  mediamtx:
+    image: bluenviron/mediamtx:1.9.3
+    restart: unless-stopped
+    volumes:
+      - ./mediamtx.yml:/mediamtx.yml:ro
+      - ${RECORDINGS_DIR:-./recordings}:/recordings
+    ports:
+      - "8889:8889"      # WebRTC (WHEP) for live view in the browser
+      - "8189:8189/udp"  # WebRTC media
+      - "8888:8888"      # HLS fallback
+    # 8554 (RTSP), 9997 (control API), 9996 (playback) stay on the internal network only.
+
+  api:
+    build: ../backend
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      CCTV_DATABASE_URL: postgresql+asyncpg://cctv:${POSTGRES_PASSWORD}@db:5432/cctv
+      CCTV_REDIS_URL: redis://redis:6379/0
+      CCTV_MEDIAMTX_API_URL: http://mediamtx:9997
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+
+  web:
+    build: ../web          # TODO(W-02): web/ has no Dockerfile yet
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      - api
+
+volumes:
+  db-data:
