@@ -30,7 +30,16 @@ Phase 6                                          ██████████�
 - [x] กำหนด `DeviceDriver` interface และ `NormalizedEvent` schema
 - [x] `DahuaDriver` เบื้องต้น + คำสั่ง `probe` สำหรับทดสอบกับอุปกรณ์จริง
 
+- [x] ทดสอบกับ NVR จริง (DHI-NVR5416-16P-4KS2, firmware 2016): RTSP ใช้ไม่ได้ จึงเพิ่มช่องทาง **Dahua NetSDK**
+- [x] เส้นทางภาพครบ: NVR → NetSDK → ffmpeg bridge → MediaMTX → WebRTC → เบราว์เซอร์ (ทดสอบผ่าน CLI `--publish`)
+- [ ] `docker compose up` บน Linux (ยังไม่ได้ทดสอบ: เครื่องพัฒนาไม่มี Docker)
+- [ ] รับเหตุการณ์ Motion จากเครื่องจริง (รอเปิด Motion Detection ช่อง 2 ที่ NVR)
+- [ ] ขอเงื่อนไข license เชิงพาณิชย์ของ NetSDK จาก Dahua
+
 **เสร็จเมื่อ:** `docker compose up` แล้วเข้าหน้าเว็บและ login ได้, ทดสอบเรียก Dahua API จากสคริปต์ได้
+
+> **สถานะ 2026-11-23 (พักงาน):** Phase 0 เสร็จเกือบทั้งหมด งานถัดไปคือ Phase 1:
+> ตัวช่วยเพิ่มอุปกรณ์ (บันทึกช่องทาง rtsp/netsdk ลงฐานข้อมูล), stream worker ที่เปิด bridge ใหม่เองเมื่อหลุด, และหน้าดูภาพสดแบบแบ่งจอ
 
 ---
 
