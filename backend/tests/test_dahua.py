@@ -39,6 +39,32 @@ async def test_device_info_and_channels():
     assert [(c.channel, c.name) for c in channels] == [(1, "หน้าสำนักงาน"), (2, "ตลาดสด"), (3, "Channel 3")]
 
 
+async def test_old_nvr_firmware_2016():
+    # Replies captured from a real DHI-NVR5416-16P-4KS2, firmware 3.210 (2016)
+    replies = {
+        "/cgi-bin/magicBox.cgi?action=getSystemInfo": "deviceType=31\r\n\r\nprocessor=ST7108\r\n\r\nserialNumber=\r\n",
+        "/cgi-bin/magicBox.cgi?action=getDeviceType": "type=DHI-NVR5416-16P-4KS2\r\n",
+        "/cgi-bin/magicBox.cgi?action=getSerialNo": "sn=2M051CBPAMSXATY\r\n",
+        "/cgi-bin/magicBox.cgi?action=getSoftwareVersion": "version=3.210.0002.2,build:2016-07-21\r\n",
+        "/cgi-bin/configManager.cgi?action=getConfig&name=ChannelTitle": (
+            "table.ChannelTitle[0].Name=IPC\r\ntable.ChannelTitle[1].Name=CAM 2\r\n"
+        ),
+        "/cgi-bin/configManager.cgi?action=getConfig&name=RemoteDevice": (
+            "table.RemoteDevice.uuid:System_CONFIG_NETCAMERA_INFO_0.Address=10.1.1.65\r\n"
+            "table.RemoteDevice.uuid:System_CONFIG_NETCAMERA_INFO_0.Enable=true\r\n"
+            "table.RemoteDevice.uuid:System_CONFIG_NETCAMERA_INFO_1.Address=192.168.0.0\r\n"
+            "table.RemoteDevice.uuid:System_CONFIG_NETCAMERA_INFO_1.Enable=false\r\n"
+        ),
+    }
+    async with DahuaDriver(PARAMS, transport=fake_device(replies)) as drv:
+        info = await drv.get_device_info()
+        channels = await drv.list_channels()
+
+    assert (info.kind, info.model, info.serial) == (DeviceKind.NVR, "DHI-NVR5416-16P-4KS2", "2M051CBPAMSXATY")
+    assert info.firmware.startswith("3.210")
+    assert [(c.channel, c.connected, c.remote_address) for c in channels] == [(1, True, "10.1.1.65"), (2, False, "")]
+
+
 async def test_wrong_password_raises_auth_error():
     async with DahuaDriver(PARAMS, transport=fake_device(NVR_REPLIES, status=401)) as drv:
         with pytest.raises(AuthError):
@@ -71,14 +97,16 @@ async def test_answers_basic_or_digest_challenge(challenge):
         seen_auth.append(auth.split(" ")[0])
         if not auth:
             return httpx.Response(401, headers={"WWW-Authenticate": challenge})
-        return httpx.Response(200, text=NVR_REPLIES[request.url.raw_path.decode()])
+        text = NVR_REPLIES.get(request.url.raw_path.decode())
+        return httpx.Response(200, text=text) if text else httpx.Response(404)
 
     async with DahuaDriver(PARAMS, transport=httpx.MockTransport(handler)) as drv:
         await drv.list_channels()
         await drv.list_channels()  # scheme remembered: no second 401 round trip
 
     expected = challenge.split(" ")[0]
-    assert seen_auth == ["", expected, expected]
+    assert seen_auth[0] == ""  # only the very first request goes out unauthenticated
+    assert seen_auth[1:] == [expected] * (len(seen_auth) - 1)
 
 
 async def test_stream_urls_and_credentials():

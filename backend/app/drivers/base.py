@@ -66,6 +66,8 @@ class DeviceInfo:
 class ChannelInfo:
     channel: int  # 1-based, same numbering the device shows to users
     name: str
+    connected: bool | None = None  # NVR: a camera is configured on this channel (None = unknown)
+    remote_address: str = ""  # NVR: IP of the camera behind this channel, if known
 
 
 @dataclass(frozen=True, slots=True)

@@ -59,16 +59,21 @@ async def _probe(args: argparse.Namespace) -> None:
             print(f"\n== Device ==\n{info.kind.value.upper()}  {info.model}  S/N {info.serial}  FW {info.firmware}")
 
             channels = await drv.list_channels()
-            print(f"\n== Channels ({len(channels)}) ==")
-            for ch in channels:
+            in_use = [c for c in channels if c.connected is not False]
+            print(f"\n== Channels: {len(in_use)} with a camera / {len(channels)} total ==")
+            for ch in in_use:
                 main = await drv.get_stream_url(ch.channel, StreamType.MAIN)
                 sub = await drv.get_stream_url(ch.channel, StreamType.SUB)
-                print(f"{ch.channel:>3}  {ch.name}\n     main: {main}\n     sub:  {sub}")
+                where = f"  (camera {ch.remote_address})" if ch.remote_address else ""
+                print(f"{ch.channel:>3}  {ch.name}{where}\n     main: {main}\n     sub:  {sub}")
 
-            if args.snapshot and channels:
-                jpeg = await drv.get_snapshot(channels[0].channel)
-                await asyncio.to_thread(Path(args.snapshot).write_bytes, jpeg)
-                print(f"\nSaved snapshot of channel {channels[0].channel} to {args.snapshot}")
+            if args.snapshot and in_use:
+                try:
+                    jpeg = await drv.get_snapshot(in_use[0].channel)
+                    await asyncio.to_thread(Path(args.snapshot).write_bytes, jpeg)
+                    print(f"\nSaved snapshot of channel {in_use[0].channel} to {args.snapshot}")
+                except DriverError as e:
+                    print(f"\nSnapshot not available from this device: {e}")
 
             if args.events:
                 print(f"\n== Listening for events for {args.events}s (walk in front of a camera) ==")
