@@ -132,6 +132,20 @@ class DeviceDriver(Protocol):
 
 **ข้อแนะนำ:** เขียน `DahuaDriver` เป็นของเราเองแบบบางๆ ด้วย httpx (ประมาณ 1–2 พันบรรทัด) โดยอ้างอิงจาก rroller/dahua และเอกสาร **Dahua HTTP API ฉบับทางการ** (ขอได้จากตัวแทนจำหน่ายหรือ Dahua partner portal) วิธีนี้ทำให้เราเป็นเจ้าของโค้ดเต็มที่ ไม่ติดปัญหา license และแก้ปัญหา firmware ได้เอง
 
+**ผลทดสอบกับเครื่องจริง (2026-11-23): DHI-NVR5416-16P-4KS2, firmware 3.210 (2016)**
+
+| ช่องทาง | ผล |
+|---|---|
+| HTTP API (CGI) | ใช้ได้: ข้อมูลเครื่อง, รายการช่อง, กล้องที่ต่ออยู่ (ใช้ **Basic auth**, ส่ง error มาพร้อม HTTP 200) |
+| `snapshot.cgi` | ใช้ไม่ได้ (HTTP 500) |
+| RTSP (`/cam/realmonitor`) | **ค้าง** ทั้ง TCP/UDP, ภาพหลัก/ภาพย่อย (ffmpeg ก็ค้าง) |
+| `eventManager.cgi` | เชื่อมต่อได้ แต่ไม่มี heartbeat |
+| **NetSDK (พอร์ต 37777)** | **ใช้ได้**: login, ภาพสด (H.264 704×576 25fps ~1 Mbps), รับ alarm |
+
+**ข้อสรุป:** `DahuaDriver` ต้องมี 2 ช่องทาง: HTTP/RTSP สำหรับ firmware ใหม่ และ **NetSDK** สำหรับ firmware เก่าที่ RTSP ใช้ไม่ได้
+ภาพจาก NetSDK ต้องส่งต่อเข้า MediaMTX (เช่น ส่งข้อมูลภาพให้ ffmpeg แปลงแล้ว publish เป็น RTSP ไปที่ MediaMTX) ส่วนหน้าเว็บใช้งานเหมือนเดิม
+⚠️ NetSDK ที่มีอยู่เป็นรุ่น **Windows (win64)** ต้องขอรุ่น **Linux x64** จาก Dahua สำหรับเซิร์ฟเวอร์จริง และตรวจเงื่อนไข license เชิงพาณิชย์ด้วย
+
 ### 3.2 ยี่ห้ออื่น (เฟสถัดไป)
 
 | ยี่ห้อ | API | หมายเหตุ |

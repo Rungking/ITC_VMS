@@ -15,6 +15,10 @@ __pycache__/
 node_modules/
 dist/
 
+# Vendor SDKs (licensed binaries, large) - keep outside git
+Z_ExternalFile/
+sdk_log.log
+
 # Runtime data
 deploy/recordings/
 backend/*.jpg
