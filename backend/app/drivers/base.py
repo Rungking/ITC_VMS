@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Callable
 from dataclasses import dataclass
 from datetime import datetime
 from enum import StrEnum
@@ -48,6 +48,7 @@ class ConnectionParams:
     password: str
     http_port: int = 80
     rtsp_port: int = 554
+    sdk_port: int = 37777  # vendor private protocol (Dahua NetSDK)
     use_https: bool = False
     timeout: float = 10.0
 
@@ -77,6 +78,30 @@ class RecordSegment:
     end: datetime
     trigger: str  # "continuous" | "event" | vendor-specific
     size_bytes: int | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class RtspSource:
+    """The media server can pull this URL itself."""
+
+    url: str  # includes credentials - never log it
+
+
+class PushSource(ABC):
+    """Video that only our code can receive (e.g. through a vendor SDK). The media layer feeds the bytes
+    to ffmpeg, which re-muxes them (no transcoding) and publishes to the media server."""
+
+    container: ClassVar[str]  # ffmpeg demuxer name for the bytes, e.g. "dhav" for Dahua
+
+    @abstractmethod
+    def start(self, on_data: Callable[[bytes], None]) -> None:
+        """Start delivering bytes. Blocking call; `on_data` runs on a vendor thread and must not block."""
+
+    @abstractmethod
+    def stop(self) -> None: ...
+
+
+LiveSource = RtspSource | PushSource
 
 
 class DeviceDriver(ABC):
@@ -122,6 +147,10 @@ class DeviceDriver(ABC):
     def subscribe_events(self) -> AsyncIterator[NormalizedEvent]:
         """Long-lived stream of events. Ends (or raises DriverError) when the connection drops;
         the caller is responsible for reconnecting."""
+
+    async def live_source(self, channel: int, stream: StreamType = StreamType.SUB) -> LiveSource:
+        """Where the media server gets live video. Default: pull the RTSP URL directly."""
+        return RtspSource(self.authenticated_url(await self.get_stream_url(channel, stream)))
 
     # --- optional (later phases) ----------------------------------------
     async def search_recordings(self, channel: int, start: datetime, end: datetime) -> list[RecordSegment]:

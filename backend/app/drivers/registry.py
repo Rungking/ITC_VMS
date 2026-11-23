@@ -12,9 +12,10 @@ def supported_vendors() -> list[Vendor]:
     return list(_DRIVERS)
 
 
-def create_driver(vendor: Vendor, params: ConnectionParams) -> DeviceDriver:
+def create_driver(vendor: Vendor, params: ConnectionParams, **options) -> DeviceDriver:
+    """`options` are vendor-specific, e.g. media="netsdk" for Dahua."""
     try:
         driver_cls = _DRIVERS[vendor]
     except KeyError:
         raise NotSupportedError(f"No driver for vendor {vendor!r} yet") from None
-    return driver_cls(params)
+    return driver_cls(params, **options)

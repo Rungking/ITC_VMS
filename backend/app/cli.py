@@ -66,14 +66,33 @@ async def _probe(args: argparse.Namespace) -> None:
                 sub = await drv.get_stream_url(ch.channel, StreamType.SUB)
                 where = f"  (camera {ch.remote_address})" if ch.remote_address else ""
                 print(f"{ch.channel:>3}  {ch.name}{where}\n     main: {main}\n     sub:  {sub}")
+            if not in_use:
+                return
+            channel = args.channel or in_use[-1].channel
 
-            if args.snapshot and in_use:
+            if args.vendor == Vendor.DAHUA:
+                from app.drivers.dahua import DahuaMedia
+                from app.drivers.dahua.detect import detect_media
+
+                if args.media == "auto":
+                    media, rtsp = await detect_media(params, channel)
+                    print(f"\n== Media path: {media.value}  (RTSP check on channel {channel}: {rtsp.status}"
+                          f"{' ' + ','.join(rtsp.codecs) if rtsp.codecs else ''}) ==")
+                else:
+                    media = DahuaMedia(args.media)
+                    print(f"\n== Media path: {media.value} (forced) ==")
+                drv.media = media  # media is used lazily, so switching here is safe
+
+            if args.snapshot:
                 try:
-                    jpeg = await drv.get_snapshot(in_use[0].channel)
+                    jpeg = await drv.get_snapshot(channel)
                     await asyncio.to_thread(Path(args.snapshot).write_bytes, jpeg)
-                    print(f"\nSaved snapshot of channel {in_use[0].channel} to {args.snapshot}")
+                    print(f"\nSaved snapshot of channel {channel} to {args.snapshot} ({len(jpeg) // 1024} KB)")
                 except DriverError as e:
-                    print(f"\nSnapshot not available from this device: {e}")
+                    print(f"\nSnapshot not available: {e}")
+
+            if args.record:
+                await _record(drv, channel, args.record, args.out)
 
             if args.events:
                 print(f"\n== Listening for events for {args.events}s (walk in front of a camera) ==")
@@ -87,6 +106,29 @@ async def _probe(args: argparse.Namespace) -> None:
                     pass
     except DriverError as e:
         sys.exit(f"Error: {e}")
+
+
+async def _record(drv, channel: int, seconds: int, out: str) -> None:
+    """Record the live sub stream to a file through the same path the media server will use."""
+    from app.drivers import PushSource, StreamType
+    from app.media.bridge import StreamBridge
+
+    source = await drv.live_source(channel, StreamType.SUB)
+    print(f"\n== Recording channel {channel} for {seconds}s -> {out} ==")
+    if isinstance(source, PushSource):
+        bridge = StreamBridge(source, output_args=["-c", "copy", "-y", out])
+        await asyncio.to_thread(bridge.start)
+        await asyncio.sleep(seconds)
+        await asyncio.to_thread(bridge.stop)
+        print(f"received {bridge.bytes_in // 1024} KB from the device, dropped chunks: {bridge.dropped_chunks}")
+    else:
+        proc = await asyncio.create_subprocess_exec(
+            "ffmpeg", "-hide_banner", "-loglevel", "error", "-rtsp_transport", "tcp", "-i", source.url,
+            "-t", str(seconds), "-map", "0:v", "-c", "copy", "-y", out,
+        )
+        await proc.wait()
+    size = await asyncio.to_thread(lambda: Path(out).stat().st_size if Path(out).exists() else 0)
+    print(f"output file: {size // 1024} KB")
 
 
 def main() -> None:
@@ -107,7 +149,12 @@ def main() -> None:
     p.add_argument("--http-port", type=int, default=80)
     p.add_argument("--rtsp-port", type=int, default=554)
     p.add_argument("--https", action="store_true")
-    p.add_argument("--snapshot", metavar="FILE.jpg", help="save a snapshot of the first channel")
+    p.add_argument("--channel", type=int, help="channel to test (default: last channel with a camera)")
+    p.add_argument("--media", choices=["auto", "rtsp", "netsdk"], default="auto",
+                   help="Dahua: how to get video/events (auto = RTSP if it works, else NetSDK)")
+    p.add_argument("--snapshot", metavar="FILE.jpg", help="save a snapshot")
+    p.add_argument("--record", type=int, metavar="SECONDS", help="record the live sub stream this long")
+    p.add_argument("--out", default="probe.mp4", help="file for --record (default probe.mp4)")
     p.add_argument("--events", type=int, metavar="SECONDS", help="listen for events this long")
     p.set_defaults(func=lambda a: asyncio.run(_probe(a)))
 

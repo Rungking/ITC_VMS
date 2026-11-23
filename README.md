@@ -48,9 +48,13 @@ $env:CCTV_FIRST_ADMIN_PASSWORD = "<ตั้งรหัสผ่าน>"
 
 ### ทดสอบกับกล้อง/NVR Dahua จริง
 ```powershell
-.\.venv\Scripts\python.exe -m app.cli probe --host 192.168.1.108 --user admin --snapshot ch1.jpg --events 30
+.\.venv\Scripts\python.exe -m app.cli probe --host 192.168.1.108 --user admin --snapshot ch.jpg --record 10 --out ch.mp4 --events 30
 ```
-คำสั่งนี้แสดงรุ่น, รายการกล้อง, RTSP URL, บันทึกภาพนิ่ง และแสดงเหตุการณ์ (motion/AI) ที่เกิดขึ้นใน 30 วินาที
+คำสั่งนี้แสดงรุ่นและรายการกล้อง จากนั้นเลือกช่องทางดึงภาพให้อัตโนมัติ (ใช้ RTSP ถ้าใช้ได้ ถ้าไม่ได้จะใช้ NetSDK แทน)
+แล้วบันทึกภาพนิ่ง บันทึกวิดีโอ 10 วินาที และแสดงเหตุการณ์ที่เกิดขึ้นใน 30 วินาที
+บังคับช่องทางได้ด้วย `--media rtsp` หรือ `--media netsdk` (ต้องติดตั้ง ffmpeg)
+
+**Dahua NetSDK** (จำเป็นสำหรับ NVR/กล้อง firmware เก่าที่ RTSP ใช้ไม่ได้): ดูวิธีติดตั้งที่ [backend/vendor/README.md](backend/vendor/README.md)
 
 ### Frontend (ต้องมี Node.js 22)
 ```powershell

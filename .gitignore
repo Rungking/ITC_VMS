@@ -17,7 +17,9 @@ dist/
 
 # Vendor SDKs (licensed binaries, large) - keep outside git
 Z_ExternalFile/
+backend/vendor/*.whl
 sdk_log.log
+probe.mp4
 
 # Runtime data
 deploy/recordings/
