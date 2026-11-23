@@ -1,0 +1,55 @@
+# MediaMTX - live view (WebRTC/HLS), recording and playback.
+# Camera paths are created at runtime by the API through the control API (Phase 1),
+# so nothing camera-specific lives in this file.
+
+logLevel: info
+
+# Control API: used only by our backend (not published outside the docker network).
+api: yes
+apiAddress: :9997
+
+# Playback server: serves recorded segments to the backend (Phase 2).
+playback: yes
+playbackAddress: :9996
+
+rtsp: yes
+rtspAddress: :8554
+rtmp: no
+srt: no
+
+hls: yes
+hlsAddress: :8888
+
+webrtc: yes
+webrtcAddress: :8889
+webrtcLocalUDPAddress: :8189
+# Put the server's LAN IP here so browsers on other machines can reach the WebRTC media port.
+webrtcAdditionalHosts: []
+
+# Auth: only containers on the docker network for now. Phase 1 switches to `authMethod: http`
+# so browsers can watch with a short-lived token issued by our API (never open to the whole LAN).
+authMethod: internal
+authInternalUsers:
+  - user: any
+    ips: ["127.0.0.1", "::1", "172.16.0.0/12"]
+    permissions:
+      - action: publish
+      - action: read
+      - action: playback
+      - action: api
+
+pathDefaults:
+  # Only pull from the camera while someone is watching (or recording).
+  sourceOnDemand: yes
+  sourceOnDemandCloseAfter: 15s
+  rtspTransport: tcp
+
+  record: no  # enabled per camera by the API (Phase 2)
+  recordPath: /recordings/%path/%Y-%m-%d_%H-%M-%S-%f
+  recordFormat: fmp4
+  recordPartDuration: 1s
+  recordSegmentDuration: 1h
+  recordDeleteAfter: 0s  # retention is managed by our own job, per camera
+
+paths:
+  all_others:

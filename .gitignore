@@ -1,0 +1,26 @@
+# Secrets
+.env
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+*.db
+
+# Node
+node_modules/
+dist/
+
+# Runtime data
+deploy/recordings/
+backend/*.jpg
+
+# OS / IDE
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
