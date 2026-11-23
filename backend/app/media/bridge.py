@@ -71,16 +71,16 @@ class StreamBridge:
 
     def _write_loop(self) -> None:
         assert self._proc and self._proc.stdin
-        while (chunk := self._queue.get()) is not None:
-            try:
-                self._proc.stdin.write(chunk)
-            except (BrokenPipeError, OSError):
-                log.error("stream bridge: ffmpeg exited (code %s)", self._proc.poll())
-                return
         try:
-            self._proc.stdin.close()
-        except OSError:
-            pass
+            while (chunk := self._queue.get()) is not None:
+                self._proc.stdin.write(chunk)
+        except OSError:  # BrokenPipe / EINVAL: ffmpeg is gone (output closed, media server restarted, ...)
+            log.error("stream bridge: ffmpeg stopped accepting data (exit code %s)", self._proc.poll())
+        finally:
+            try:
+                self._proc.stdin.close()
+            except OSError:
+                pass
 
     def wait(self, timeout: float) -> bool:
         """Wait for ffmpeg to exit by itself (e.g. after `-frames:v 1`). True if it did."""
