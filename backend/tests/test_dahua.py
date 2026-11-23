@@ -45,6 +45,27 @@ async def test_wrong_password_raises_auth_error():
             await drv.list_channels()
 
 
+@pytest.mark.parametrize(
+    "challenge", ['Basic realm="Device_CGI"', 'Digest realm="Login to X", nonce="abc", qop="auth"']
+)
+async def test_answers_basic_or_digest_challenge(challenge):
+    seen_auth: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        auth = request.headers.get("authorization", "")
+        seen_auth.append(auth.split(" ")[0])
+        if not auth:
+            return httpx.Response(401, headers={"WWW-Authenticate": challenge})
+        return httpx.Response(200, text=NVR_REPLIES[request.url.raw_path.decode()])
+
+    async with DahuaDriver(PARAMS, transport=httpx.MockTransport(handler)) as drv:
+        await drv.list_channels()
+        await drv.list_channels()  # scheme remembered: no second 401 round trip
+
+    expected = challenge.split(" ")[0]
+    assert seen_auth == ["", expected, expected]
+
+
 async def test_stream_urls_and_credentials():
     drv = DahuaDriver(PARAMS)
     main = await drv.get_stream_url(2, StreamType.MAIN)

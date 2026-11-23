@@ -3,12 +3,59 @@
 Reference: official "Dahua HTTP API" spec, and github.com/rroller/dahua for firmware quirks.
 """
 
-from collections.abc import AsyncIterator
+import logging
+from collections.abc import AsyncIterator, Generator
 from contextlib import asynccontextmanager
 
 import httpx
 
 from app.drivers.base import AuthError, ConnectionParams, DeviceUnreachableError, DriverError
+
+log = logging.getLogger(__name__)
+
+
+class DeviceAuth(httpx.Auth):
+    """Answer whichever challenge the device sends: Digest (preferred) or Basic.
+
+    Dahua firmware differs: most use Digest, some NVRs ship with `Basic realm="Device_CGI"`.
+    The scheme is remembered after the first challenge so later requests skip the extra round trip.
+    """
+
+    def __init__(self, username: str, password: str, host: str) -> None:
+        self._digest = httpx.DigestAuth(username, password)
+        self._basic = httpx.BasicAuth(username, password)
+        self._host = host
+        self._scheme: str | None = None
+
+    def auth_flow(self, request: httpx.Request) -> Generator[httpx.Request, httpx.Response, None]:
+        if self._scheme == "basic":
+            yield from self._basic.auth_flow(request)
+            return
+        if self._scheme == "digest":
+            yield from self._digest.auth_flow(request)
+            return
+
+        response = yield request
+        if response.status_code != 401:
+            return
+        challenges = " ".join(response.headers.get_list("www-authenticate")).lower()
+        if "digest" in challenges:
+            self._scheme = "digest"
+            # Hand the 401 we already have to the digest flow instead of letting it re-send the request.
+            flow = self._digest.auth_flow(request)
+            next(flow)  # the digest flow's own unauthenticated attempt - skipped
+            try:
+                authed = flow.send(response)
+                while True:
+                    authed = flow.send((yield authed))
+            except StopIteration:
+                pass
+        elif "basic" in challenges:
+            self._scheme = "basic"
+            if request.url.scheme == "http":
+                log.warning("%s only offers Basic auth over HTTP: the password is sent unencrypted. "
+                            "Enable Digest or HTTPS on the device.", self._host)
+            yield from self._basic.auth_flow(request)
 
 
 def parse_kv(text: str) -> dict[str, str]:
@@ -26,7 +73,7 @@ class DahuaClient:
         scheme = "https" if params.use_https else "http"
         self._http = httpx.AsyncClient(
             base_url=f"{scheme}://{params.host}:{params.http_port}",
-            auth=httpx.DigestAuth(params.username, params.password),
+            auth=DeviceAuth(params.username, params.password, params.host),
             timeout=params.timeout,
             verify=False,  # devices ship self-signed certificates
             transport=transport,
