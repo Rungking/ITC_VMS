@@ -68,6 +68,21 @@ def parse_kv(text: str) -> dict[str, str]:
     return result
 
 
+def check_error_body(text: str, path: str) -> None:
+    """Dahua often answers HTTP 200 with an error in the body, e.g.
+
+        Error
+        ErrorID=0, Detail=Invalid Authority!
+    """
+    stripped = text.lstrip()
+    if not stripped.startswith("Error"):
+        return
+    detail = stripped.partition("Detail=")[2].strip() or stripped[:100]
+    if "authority" in detail.lower():
+        raise AuthError(f"บัญชีนี้ไม่มีสิทธิ์ใช้งาน API ของอุปกรณ์ ({detail})")
+    raise DriverError(f"{path} -> {detail}")
+
+
 class DahuaClient:
     def __init__(self, params: ConnectionParams, transport: httpx.AsyncBaseTransport | None = None) -> None:
         scheme = "https" if params.use_https else "http"
@@ -100,7 +115,9 @@ class DahuaClient:
     # Paths are passed pre-built (query included) because some Dahua firmware rejects
     # percent-encoded brackets such as codes=%5BAll%5D.
     async def get_text(self, path: str) -> str:
-        return (await self._get(path)).text
+        text = (await self._get(path)).text
+        check_error_body(text, path)
+        return text
 
     async def get_bytes(self, path: str) -> bytes:
         return (await self._get(path)).content

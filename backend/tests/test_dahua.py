@@ -2,7 +2,7 @@ import httpx
 import pytest
 
 from app.core.enums import DeviceKind
-from app.drivers import AuthError, ConnectionParams, EventAction, EventType, StreamType
+from app.drivers import AuthError, ConnectionParams, DriverError, EventAction, EventType, StreamType
 from app.drivers.dahua import DahuaDriver
 from app.drivers.dahua.events import iter_event_blocks, parse_event_block
 
@@ -43,6 +43,21 @@ async def test_wrong_password_raises_auth_error():
     async with DahuaDriver(PARAMS, transport=fake_device(NVR_REPLIES, status=401)) as drv:
         with pytest.raises(AuthError):
             await drv.list_channels()
+
+
+async def test_error_in_200_body_is_raised_not_swallowed():
+    # Real NVR reply when the account lacks API rights: HTTP 200 + error text.
+    body = "Error\r\nErrorID=0, Detail=Invalid Authority!\r\n"
+    replies = dict.fromkeys(NVR_REPLIES, body)
+    async with DahuaDriver(PARAMS, transport=fake_device(replies)) as drv:
+        with pytest.raises(AuthError, match="Invalid Authority"):
+            await drv.get_device_info()
+
+    replies = dict.fromkeys(NVR_REPLIES, "Error\r\nBad Request!\r\n")
+    async with DahuaDriver(PARAMS, transport=fake_device(replies)) as drv:
+        with pytest.raises(DriverError) as exc:
+            await drv.list_channels()
+        assert not isinstance(exc.value, AuthError)
 
 
 @pytest.mark.parametrize(
