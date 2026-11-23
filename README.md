@@ -56,6 +56,18 @@ $env:CCTV_FIRST_ADMIN_PASSWORD = "<ตั้งรหัสผ่าน>"
 
 **Dahua NetSDK** (จำเป็นสำหรับ NVR/กล้อง firmware เก่าที่ RTSP ใช้ไม่ได้): ดูวิธีติดตั้งที่ [backend/vendor/README.md](backend/vendor/README.md)
 
+### ดูภาพสดในเบราว์เซอร์ (ทดสอบบนเครื่อง)
+1. ดาวน์โหลด [MediaMTX v1.9.3 (windows_amd64)](https://github.com/bluenviron/mediamtx/releases/tag/v1.9.3) แล้วแตกไฟล์ไว้ที่ `tools\mediamtx\` (โฟลเดอร์นี้ไม่เก็บใน git)
+2. เปิด MediaMTX:
+   ```powershell
+   tools\mediamtx\mediamtx.exe deploy\mediamtx.dev.yml
+   ```
+3. ส่งภาพจากกล้องเข้า MediaMTX (ในโฟลเดอร์ `backend`):
+   ```powershell
+   .\.venv\Scripts\python.exe -m app.cli probe --host 192.168.1.110 --user itc --channel 2 --publish rtsp://127.0.0.1:8554/cam2
+   ```
+4. เปิด http://127.0.0.1:8889/cam2 ในเบราว์เซอร์
+
 ### Frontend (ต้องมี Node.js 22)
 ```powershell
 cd frontend

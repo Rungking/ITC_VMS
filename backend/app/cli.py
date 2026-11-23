@@ -94,6 +94,9 @@ async def _probe(args: argparse.Namespace) -> None:
             if args.record:
                 await _record(drv, channel, args.record, args.out)
 
+            if args.publish:
+                await _publish(drv, channel, args.publish, args.publish_seconds)
+
             if args.events:
                 print(f"\n== Listening for events for {args.events}s (walk in front of a camera) ==")
                 try:
@@ -131,6 +134,33 @@ async def _record(drv, channel: int, seconds: int, out: str) -> None:
     print(f"output file: {size // 1024} KB")
 
 
+async def _publish(drv, channel: int, url: str, seconds: int) -> None:
+    """Push the live sub stream into a media server (e.g. MediaMTX) - what the stream worker will do in Phase 1."""
+    from app.drivers import PushSource, StreamType
+    from app.media.bridge import StreamBridge
+
+    source = await drv.live_source(channel, StreamType.SUB)
+    print(f"\n== Publishing channel {channel} to {url} for {seconds}s (Ctrl-C to stop) ==")
+    if isinstance(source, PushSource):
+        bridge = StreamBridge(source, publish_url=url)
+        await asyncio.to_thread(bridge.start)
+        try:
+            for _ in range(seconds):
+                await asyncio.sleep(1)
+                if not bridge.running:
+                    print("ffmpeg stopped - is the media server running?")
+                    break
+        finally:
+            await asyncio.to_thread(bridge.stop)
+        print(f"sent {bridge.bytes_in // 1024} KB, dropped chunks: {bridge.dropped_chunks}")
+    else:  # plain RTSP device: in production MediaMTX pulls it itself; here we relay with ffmpeg
+        proc = await asyncio.create_subprocess_exec(
+            "ffmpeg", "-hide_banner", "-loglevel", "error", "-rtsp_transport", "tcp", "-i", source.url,
+            "-t", str(seconds), "-map", "0:v", "-c", "copy", "-f", "rtsp", "-rtsp_transport", "tcp", url,
+        )
+        await proc.wait()
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(prog="python -m app.cli")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -156,6 +186,9 @@ def main() -> None:
     p.add_argument("--record", type=int, metavar="SECONDS", help="record the live sub stream this long")
     p.add_argument("--out", default="probe.mp4", help="file for --record (default probe.mp4)")
     p.add_argument("--events", type=int, metavar="SECONDS", help="listen for events this long")
+    p.add_argument("--publish", metavar="RTSP_URL", help="push live video to a media server, e.g. "
+                   "rtsp://127.0.0.1:8554/cam2 (then watch at http://127.0.0.1:8889/cam2)")
+    p.add_argument("--publish-seconds", type=int, default=300, help="how long to publish (default 300)")
     p.set_defaults(func=lambda a: asyncio.run(_probe(a)))
 
     args = parser.parse_args()

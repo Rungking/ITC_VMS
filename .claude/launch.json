@@ -9,6 +9,13 @@
       "port": 8000
     },
     {
+      "name": "mediamtx",
+      "runtimeExecutable": "D:\\1_ITC_WithClaude\\CCTV\\tools\\mediamtx\\mediamtx.exe",
+      "runtimeArgs": ["D:\\1_ITC_WithClaude\\CCTV\\deploy\\mediamtx.dev.yml"],
+      "cwd": "D:\\1_ITC_WithClaude\\CCTV",
+      "port": 8889
+    },
+    {
       "name": "web",
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev"],
