@@ -144,7 +144,12 @@ class DeviceDriver(Protocol):
 
 **ข้อสรุป:** `DahuaDriver` ต้องมี 2 ช่องทาง: HTTP/RTSP สำหรับ firmware ใหม่ และ **NetSDK** สำหรับ firmware เก่าที่ RTSP ใช้ไม่ได้
 ภาพจาก NetSDK ต้องส่งต่อเข้า MediaMTX (เช่น ส่งข้อมูลภาพให้ ffmpeg แปลงแล้ว publish เป็น RTSP ไปที่ MediaMTX) ส่วนหน้าเว็บใช้งานเหมือนเดิม
-⚠️ NetSDK ที่มีอยู่เป็นรุ่น **Windows (win64)** ต้องขอรุ่น **Linux x64** จาก Dahua สำหรับเซิร์ฟเวอร์จริง และตรวจเงื่อนไข license เชิงพาณิชย์ด้วย
+**NetSDK V3.060.0000003.0.R.251201 (Python wheel 2.0.0.1)** มีทั้งรุ่น Windows และ Linux x64 แล้ว (อยู่ใน `Z_ExternalFile/` ไม่เก็บใน git)
+- โค้ด Python ของทั้งสองรุ่น**เหมือนกันทุกไฟล์** โค้ดที่พัฒนาบน Windows จึงย้ายไปรันบน Linux ได้ทันที
+- รุ่น Linux ต้องใช้ glibc ≥ 2.7 และ libstdc++ (GLIBCXX 3.4.18) ใช้ได้กับ Debian/Ubuntu ทุกรุ่นปัจจุบัน แต่ใช้กับ Alpine ไม่ได้
+- `NetClient` โหลด `libRenderEngine.so` และ `libplay.so` ทุกครั้ง ซึ่งต้องมี `libX11.so.6`, `libXv.so.1`, `libGL.so.1`, `libasound.so.2`
+  → ใน Docker image ต้องติดตั้ง `apt-get install libx11-6 libxv1 libgl1 libasound2` (ไม่ต้องมีหน้าจอจริง)
+- ⚠️ ต้องตรวจเงื่อนไข license เชิงพาณิชย์ของ NetSDK กับ Dahua ก่อนนำไปรวมในผลิตภัณฑ์ที่ขาย
 
 ### 3.2 ยี่ห้ออื่น (เฟสถัดไป)
 
