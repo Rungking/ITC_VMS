@@ -10,7 +10,7 @@
 | # | อุปกรณ์ | ยี่ห้อ | รุ่น / firmware | IP | ผู้ใช้ API | บทบาท |
 |---|---|---|---|---|---|---|
 | 1 | NVR (รุ่นเก่า) | Dahua | DHI-NVR5416-16P-4KS2 / 3.210 (2016)* | 192.168.1.110 | itc | บันทึกภาพ, ย้อนหลัง |
-| 2 | NVR (รุ่นใหม่) | Hikvision | _รอ login_ (ISAPI Digest, พอร์ต 8000) | 192.168.1.168 | admin | บันทึกภาพ, ย้อนหลัง |
+| 2 | NVR (รุ่นใหม่) | Hikvision | **DS-7616NXI-K2/16P(D)** / V4.84.100 build 250918 (MAC 88:DE:39:EC:28:B2) | 192.168.1.168 | admin | บันทึกภาพ, ย้อนหลัง · ch1 = กล้อง #6 |
 | 3 | PoE Switch | Hikvision | **DS-3E1310P-EI/M** (Smart Managed) / V3.0.9 build 250115 | 192.168.1.64 | admin | จ่ายไฟ/เครือข่ายให้กล้อง, โหนดใน Topology |
 | 4 | กล้อง ALPR | Dahua | **ITC237-PW1A-IRZ** / 2.202.0000.1.R (2017-02-28), S/N 3B02153PAJ00001 | 192.168.1.111 (เดิม .108) | admin | ภาพสด + อ่านป้ายทะเบียน |
 | 5 | กล้องทั่วไป | Dahua | **IPC-HFW5431E-Z** / 2.460.0000.1.R (2016-10-25) | 192.168.1.112 (เดิม 192.168.2.21) | admin | ภาพสด · ต่อเข้า NVR #1 แล้ว |
@@ -31,6 +31,21 @@
 | NVR #1 .110 | S/N 2M051CBPAMSXATY · 2/16 ช่องมีกล้อง: ch1 = ALPR .111, ch2 = "IPC" .112 | **RTSP ใช้ได้แล้ว** (ch2: H.264 + PCMA) | ได้ (ch2, 166 KB) |
 | ALPR #4 .111 | S/N 3B02153PAJ00001 · 1 ช่อง | RTSP `/cam/realmonitor` ตอบ **404** → สลับไป NetSDK | **ไม่ได้**: NetSDK snapshot "Protocol error / network timeout" และดึงเฟรมจากวิดีโอ NetSDK ไม่ได้ |
 | กล้อง #5 .112 | S/N 2L05595PAA00269 · 1 ช่อง | RTSP (H.264 + PCMA) | ได้ (170 KB) |
+
+**ผล ISAPI ของ Hikvision (2026-11-26, Digest MD5):**
+
+| endpoint | NVR #2 .168 | กล้อง #6 .113 | Switch #3 .64 |
+|---|---|---|---|
+| System/deviceInfo, status, time, Network/interfaces, capabilities | 200 | 200 | 200 |
+| Streaming/channels | 200 | 200 | 403 |
+| ContentMgmt/InputProxy/channels (+status) | 200 | 403 (ไม่ใช่ NVR) | 403 |
+| ContentMgmt/Storage | 200 | 200 | 403 |
+| Event/triggers | 200 | 500 | 403 |
+| ภาพนิ่ง Streaming/channels/101/picture | 200 (17 KB, ภาพจากกล้อง #6 "Server Rm01") | 200 (81 KB) | 403 |
+
+- กล้อง #6 ตั้งเขตเวลาเป็น **+08:00** ส่วน NVR เป็น +07:00 ต้องแก้เขตเวลาของกล้อง
+- Switch ใช้ endpoint กลุ่ม System ได้ ส่วนสถานะพอร์ต/PoE ต้องหา endpoint เฉพาะของ switch ต่อ
+- สคริปต์ทดสอบยังแยกรายการช่องกล้องจาก XML ของ NVR ไม่ออก (ตอบ 200 แต่ไม่ได้แสดงรายการ) ต้องเขียน parser ใน HikvisionDriver
 
 งานค้างของ ALPR: หา RTSP path ที่ถูกของรุ่น ITC (หรือดูภาพผ่าน NVR ch1 แทน) และรับเหตุการณ์ป้ายทะเบียน (`snapManager` / `TrafficJunction`)
 
