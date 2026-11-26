@@ -29,6 +29,8 @@ _(เขียนตรงนี้ก่อนสลับไปสาย Web �
 - [ ] **B-14** Health check worker + WebSocket `/ws/status` ส่งเฉพาะสถานะที่เปลี่ยน · ส่งต่อ: W-13
 - [ ] **B-15** Layout API: บันทึก/โหลด/แชร์ layout ภาพสด · ส่งต่อ: W-11
 - [ ] **B-16** สคริปต์นำเข้าข้อมูลจาก `monitor_metadata` ของต้นแบบ (ทำเฉพาะถ้ามีข้อมูลใช้งานจริง: **รอคำตอบ**)
+- [x] **B-17** `HikvisionDriver` (ISAPI): ข้อมูลเครื่อง, ช่องกล้องของ NVR, RTSP, ภาพนิ่ง, alertStream · ทดสอบกับ NVR DS-7616NXI-K2/16P(D) และกล้อง DS-2CD2721G0-IZ ในแล็บแล้ว
+- [ ] **B-18** กล้อง Dahua ALPR (ITC237): หา RTSP path ของรุ่น ITC และรับเหตุการณ์ป้ายทะเบียน (`snapManager` / `TrafficJunction`)
 
 ## Phase 2: บันทึกและย้อนหลัง
 
