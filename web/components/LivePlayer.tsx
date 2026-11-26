@@ -104,7 +104,9 @@ export function LivePlayer({
   }, [reloadKey, attempt]);
 
   return (
-    <div className={`relative bg-black ${className}`}>
+    // Positioning comes from the caller (e.g. "absolute inset-0"); never add "relative" next to it, or the two
+    // classes fight and the player collapses to 0x0 while video is still decoding.
+    <div className={`bg-black ${/\b(absolute|fixed|relative|sticky)\b/.test(className) ? className : `relative ${className}`}`}>
       <video
         ref={videoRef}
         autoPlay
