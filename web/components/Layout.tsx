@@ -44,6 +44,11 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
       label: t("monitor"),
     },
     {
+      href: "/playback",
+      icon: History,
+      label: t("playback"),
+    },
+    {
       href: "/map",
       icon: MapIcon, // Assuming you have a Map icon, otherwise use Route or something similar
       label: t("map"),

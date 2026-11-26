@@ -18,6 +18,8 @@ import {
   DialogTitle,
 } from "@/components/Dialog";
 import { Camera } from "@/types";
+import { LivePlayer } from "@/components/LivePlayer";
+import { api } from "@/lib/api";
 
 function CameraGridItem({
   cam,
@@ -32,26 +34,8 @@ function CameraGridItem({
   t: (key: string) => string;
   fullscreen?: boolean;
 }) {
-  // Lock the stream URL on first mount — don't restart stream when context refreshes
-  const streamUrl = React.useMemo(() => {
-    return cam.streamUrl ?? (cam.port ? `http://localhost:${cam.port}` : null);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const [imgKey, setImgKey] = useState(0); // increment to force img reload
-  const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const handleError = useCallback(() => {
-    // Auto-retry after 5 seconds
-    if (retryTimerRef.current) clearTimeout(retryTimerRef.current);
-    retryTimerRef.current = setTimeout(() => {
-      setImgKey(k => k + 1);
-    }, 5000);
-  }, []);
-
-  useEffect(() => () => {
-    if (retryTimerRef.current) clearTimeout(retryTimerRef.current);
-  }, []);
+  // Small tiles use the sub stream (low bandwidth); the enlarged dialog uses the main stream.
+  const loadSub = useCallback(() => api.live(cam.id, "sub"), [cam.id]);
 
   const isOffline = cam.status === "inactive";
 
@@ -81,16 +65,7 @@ function CameraGridItem({
             </span>
           </div>
         ) : (
-          // Plain <img> keeps the MJPEG multipart connection alive without Next.js interference
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            key={imgKey}
-            src={streamUrl || "/placeholder-v.png"}
-            alt={cam.name}
-            className="absolute inset-0 w-full h-full object-contain opacity-80 group-hover:opacity-100 transition-opacity duration-500"
-            referrerPolicy="no-referrer"
-            onError={handleError}
-          />
+          <LivePlayer load={loadSub} className="absolute inset-0" />
         )}
 
         {/* Hover Overlay */}
@@ -115,10 +90,6 @@ function CameraGridItem({
           )}
         </div>
 
-        {/* FPS Badge */}
-        <div className="absolute top-3 right-3 z-10 bg-black/60 backdrop-blur-md px-2 py-1 rounded-md text-[10px] font-mono text-zinc-300">
-          {cam.framerate} {t("fps")}
-        </div>
       </div>
 
       {/* Camera name overlay (fullscreen only) */}
@@ -136,7 +107,7 @@ function CameraGridItem({
             <Video className="w-4 h-4 text-zinc-400 flex-shrink-0" />
           </div>
           <p className="text-xs text-zinc-500 dark:text-zinc-400 truncate mt-0.5">
-            {cam.port ?? cam.id}
+            {cam.deviceName ?? cam.brand} · ch{cam.channel}
           </p>
         </div>
       )}
@@ -341,24 +312,17 @@ export default function MonitorPage() {
                     <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
                     <span>{selectedMonitorCamera.name}</span>
                     <span className="text-xs font-normal text-zinc-400">
-                      • {selectedMonitorCamera.port ?? selectedMonitorCamera.id}
+                      • {selectedMonitorCamera.deviceName ?? selectedMonitorCamera.brand} · ch{selectedMonitorCamera.channel}
                     </span>
                   </DialogTitle>
                 </div>
               </DialogHeader>
 
               <div className="relative aspect-video w-full overflow-hidden bg-black">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={
-                    selectedMonitorCamera.streamUrl ??
-                    (selectedMonitorCamera.port
-                      ? `http://localhost:${selectedMonitorCamera.port}`
-                      : "/placeholder-v.png")
-                  }
-                  alt={selectedMonitorCamera.name}
-                  className="absolute inset-0 w-full h-full object-contain"
-                  referrerPolicy="no-referrer"
+                <LivePlayer
+                  load={() => api.live(selectedMonitorCamera.id, "main")}
+                  reloadKey={selectedMonitorCamera.id}
+                  className="absolute inset-0"
                 />
               </div>
             </div>

@@ -30,4 +30,5 @@ export interface Camera {
   connectionType?: string;
   topoX?: number | null;
   topoY?: number | null;
+  deviceName?: string; // NVR/camera this channel belongs to (ITC VMS backend)
 }

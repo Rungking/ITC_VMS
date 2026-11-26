@@ -5,6 +5,9 @@ import { useAppContext } from "@/components/providers";
 import { Camera } from "@/types";
 import { WifiOff, X, Share2 } from "lucide-react";
 import type L from "leaflet";
+import Link from "next/link";
+import { LivePlayer } from "@/components/LivePlayer";
+import { api } from "@/lib/api";
 
 type CameraPosition = { lat: number; lng: number };
 type PositionMap = Record<string, CameraPosition>;
@@ -394,13 +397,11 @@ export default function MapView() {
             {!isSwitchSelected && (
               <div className="relative bg-zinc-950 flex items-center justify-center min-h-[40px]">
                 <div className="relative aspect-video w-full flex items-center justify-center">
-                  {selectedCamera.status === "active" && selectedCamera.streamUrl ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={selectedCamera.streamUrl}
-                      alt={selectedCamera.name}
-                      className="w-full h-full object-contain"
-                      referrerPolicy="no-referrer"
+                  {selectedCamera.status === "active" ? (
+                    <LivePlayer
+                      load={() => api.live(selectedCamera.id, "sub")}
+                      reloadKey={selectedCamera.id}
+                      className="absolute inset-0"
                     />
                   ) : (
                     <div className="flex flex-col items-center gap-2 text-zinc-600">
@@ -438,6 +439,16 @@ export default function MapView() {
                 <div className="font-medium text-zinc-700 dark:text-zinc-300 truncate">{selectedCamera.ipAddress || selectedCamera.ip || "N/A"}</div>
               </div>
             </div>
+            {!isSwitchSelected && (
+              <div className="px-4 pb-3">
+                <Link
+                  href={`/playback?camera=${selectedCamera.id}`}
+                  className="block text-center text-xs font-medium py-1.5 rounded-lg bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700"
+                >
+                  ดูภาพย้อนหลัง
+                </Link>
+              </div>
+            )}
           </div>
         )}
       </div>

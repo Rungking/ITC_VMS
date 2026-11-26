@@ -3,6 +3,7 @@
 import React, { useEffect, useRef, useState, useCallback } from "react";
 import { useAppContext } from "@/components/providers";
 import { Camera } from "@/types";
+import { api } from "@/lib/api";
 import { Dialog, DialogContent } from "@/components/Dialog";
 import {
   WifiOff, X, MapPin, RefreshCw, Search,
@@ -256,20 +257,11 @@ export default function MapViewSettings() {
     const { id, lat, lng, location } = pendingLocationData;
 
     try {
-      const res = await fetch("/api/zm", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id, lat, lng, location })
+      await api.updateCamera(id, { lat, lng, location_name: location });
+      setPositions((prev) => {
+        const updated = { ...prev, [id]: { lat, lng, location } };
+        return updated;
       });
-      
-      if (res.ok) {
-        setPositions((prev) => {
-          const updated = { ...prev, [id]: { lat, lng, location } };
-          return updated;
-        });
-      } else {
-        console.error("Failed to save location to database");
-      }
     } catch (err) {
       console.error("Save Location Error:", err);
     }
@@ -302,22 +294,15 @@ export default function MapViewSettings() {
 
   const handleRemovePlacement = useCallback(async (camId: string) => {
     try {
-      const res = await fetch("/api/zm", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: camId, lat: null, lng: null, location: "" })
+      await api.updateCamera(camId, { lat: null, lng: null, location_name: "" });
+      setPositions((prev) => {
+        const updated = { ...prev };
+        delete updated[camId];
+        return updated;
       });
-      
-      if (res.ok) {
-        setPositions((prev) => {
-          const updated = { ...prev };
-          delete updated[camId];
-          return updated;
-        });
-        if (markersRef.current[camId]) {
-          markersRef.current[camId].remove();
-          delete markersRef.current[camId];
-        }
+      if (markersRef.current[camId]) {
+        markersRef.current[camId].remove();
+        delete markersRef.current[camId];
       }
     } catch (err) {
       console.error("Remove Placement Error:", err);

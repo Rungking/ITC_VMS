@@ -10,6 +10,7 @@ import React, {
 } from "react";
 import { Camera } from "@/types";
 import { addLog } from "@/lib/logs";
+import { api, toUiCamera } from "@/lib/api";
 import thMessages from "@/public/locales/th/common.json";
 import enMessages from "@/public/locales/en/common.json";
 
@@ -113,10 +114,13 @@ export function Providers({ children }: { children: React.ReactNode }) {
     if (!isSilent) setLoading(true);
     setError(null);
     try {
-      const res = await fetch("/api/zm");
-      const data = await res.json();
+      // ITC VMS backend (no more ZoneMinder): cameras come from the NVRs added in the backend.
+      const data = await api
+        .cameras()
+        .then((list) => ({ success: true as const, cameras: list.map(toUiCamera), error: undefined }))
+        .catch((e: Error) => ({ success: false as const, cameras: [] as Camera[], error: e.message }));
       if (data.success) {
-        const allDevices = (data.cameras ?? []) as Camera[];
+        const allDevices = data.cameras;
 
         setCameras((prev) => {
           if (prev.length !== allDevices.length) return allDevices;
@@ -163,10 +167,10 @@ export function Providers({ children }: { children: React.ReactNode }) {
     // Initial fetch in a microtask to avoid synchronous setState warnings
     Promise.resolve().then(() => fetchCameras());
 
-    // เพิ่มการ Refresh ข้อมูลจาก ZM ทุกๆ 5 วินาทีแบบ Silent (ไม่แสดง Loading)
+    // Refresh the camera list quietly; live status will come over WebSocket later (B-14/W-13)
     const interval = setInterval(() => {
       fetchCameras(true);
-    }, 5000);
+    }, 15000);
 
     return () => clearInterval(interval);
   }, [fetchCameras]);

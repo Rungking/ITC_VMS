@@ -1,5 +1,6 @@
 {
   "monitor": "Monitor",
+  "playback": "Playback",
   "logs": "History",
   "settings": "Settings",
   "addCamera": "Add Camera",
