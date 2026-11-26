@@ -5,7 +5,10 @@
 
 ## ค้างไว้
 
-_(เขียนตรงนี้ก่อนสลับไปสาย Web ว่าหยุดที่ไหน)_
+**2026-11-26 ทางผ่านภาพสด + ย้อนหลัง (B-19):** ทำบางส่วนของ B-04, B-05, B-12, B-22 ไปแล้วเพื่อให้หน้าเว็บดูภาพจาก NVR ได้
+- ทำแล้ว: `Camera.lat/lng/location_name/remote_address` (migration 0002), `POST/GET /api/devices`, `GET/PATCH /api/cameras`,
+  `GET /api/cameras/{id}/live` (MediaMTX on-demand, ไม่มี sub stream → ใช้ main), `POST /api/cameras/{id}/playback` (RTSP ของ NVR + audit), CLI `add-device`
+- ยังไม่ทำ: login จริง (ใช้ `VMS_DEV_NO_AUTH` ชั่วคราว), NetworkNode/Topology (B-04), ลบ/แก้อุปกรณ์, NetSDK bridge อัตโนมัติ (B-12), ค้นหาไฟล์ย้อนหลัง (B-22)
 
 ---
 
@@ -29,6 +32,7 @@ _(เขียนตรงนี้ก่อนสลับไปสาย Web �
 - [ ] **B-14** Health check worker + WebSocket `/ws/status` ส่งเฉพาะสถานะที่เปลี่ยน · ส่งต่อ: W-13
 - [ ] **B-15** Layout API: บันทึก/โหลด/แชร์ layout ภาพสด · ส่งต่อ: W-11
 - [ ] **B-16** สคริปต์นำเข้าข้อมูลจาก `monitor_metadata` ของต้นแบบ (ทำเฉพาะถ้ามีข้อมูลใช้งานจริง: **รอคำตอบ**)
+- [x] **B-19** ทางผ่านภาพสด + ย้อนหลังจาก NVR สำหรับหน้าเว็บ (ดูหัวข้อ "ค้างไว้") · ทดสอบกับ NVR ในแล็บแล้ว: ภาพสด 3 กล้อง, ย้อนหลังจาก NVR Dahua
 - [x] **B-17** `HikvisionDriver` (ISAPI): ข้อมูลเครื่อง, ช่องกล้องของ NVR, RTSP, ภาพนิ่ง, alertStream · ทดสอบกับ NVR DS-7616NXI-K2/16P(D) และกล้อง DS-2CD2721G0-IZ ในแล็บแล้ว
 - [ ] **B-18** กล้อง Dahua ALPR (ITC237): หา RTSP path ของรุ่น ITC และรับเหตุการณ์ป้ายทะเบียน (`snapManager` / `TrafficJunction`) · **พักไว้** (ตัดสินใจ 2026-11-26): ตอนนี้กล้องแค่ต่อไว้ ให้ทำพร้อมกับตอนเชื่อมกล้อง AI รุ่นอื่น ระหว่างนี้ดูภาพผ่าน NVR Dahua ch1 ได้
 

@@ -4,7 +4,11 @@
 
 ## ค้างไว้
 
-_(เขียนตรงนี้ก่อนสลับไปสาย Backend ว่าหยุดที่ไหน)_
+**2026-11-26 ทางผ่านภาพสด + ย้อนหลัง:** ทำบางส่วนของ W-03, W-04, W-10, W-14, W-20 แล้ว
+- ทำแล้ว: `lib/api.ts` (client ของ backend + แปลงเป็น type `Camera` เดิม), `/api/*` → backend ใน `next.config.ts`,
+  `providers` โหลดกล้องจาก backend (ไม่ใช้ ZoneMinder), `<LivePlayer>` WebRTC/WHEP (หน้า Monitor, popup แผนที่),
+  บันทึกตำแหน่งกล้องในหน้าตั้งค่าแผนที่ผ่าน backend, หน้า `/playback` (เลือกกล้อง + เวลา + ความยาว)
+- ยังไม่ทำ: ลบ Prisma/`/api/zm` (หน้าตั้งค่ากล้องและ Topology ยังเรียกอยู่), HLS สำรอง, Timeline 24 ชม. (W-20), login (W-05)
 
 ---
 

@@ -47,10 +47,21 @@ $env:VMS_FIRST_ADMIN_PASSWORD = "<ตั้งรหัสผ่าน>"
 .\.venv\Scripts\python.exe -m app.cli probe --host 192.168.1.110 --user itc --channel 2 --publish rtsp://127.0.0.1:8554/cam2
 ```
 
-### ภาพสดในเบราว์เซอร์
-1. แตก [MediaMTX v1.9.3 (windows_amd64)](https://github.com/bluenviron/mediamtx/releases/tag/v1.9.3) ไว้ที่ `tools\mediamtx\`
-2. `tools\mediamtx\mediamtx.exe deploy\mediamtx.dev.yml`
-3. ส่งภาพเข้าด้วยคำสั่ง `probe --publish` ข้างบน แล้วเปิด http://127.0.0.1:8889/cam2
+### ภาพสดและย้อนหลังบนเครื่องพัฒนา (3 โปรแกรม)
+1. **MediaMTX:** แตก [MediaMTX v1.9.3 (windows_amd64)](https://github.com/bluenviron/mediamtx/releases/tag/v1.9.3) ไว้ที่ `tools\mediamtx\` แล้วรัน
+   `tools\mediamtx\mediamtx.exe deploy\mediamtx.dev.yml`
+2. **Backend:** ใน `backend\.env` เพิ่ม (ครั้งแรก)
+   ```
+   VMS_CREDENTIALS_KEY=<จาก python -m app.cli gen-keys>
+   VMS_DEV_NO_AUTH=true            # ยังไม่มีหน้า login (B-03/W-05) - ห้ามใช้บนเซิร์ฟเวอร์
+   VMS_MEDIAMTX_API_URL=http://127.0.0.1:9997
+   ```
+   แล้ว `alembic upgrade head` และรัน uvicorn ตามข้างบน
+3. **เพิ่ม NVR** (อ่านรายการกล้องให้เอง, รหัสผ่านเก็บแบบเข้ารหัส, กล้องตัวเดียวกันที่ต่อหลาย NVR เก็บครั้งเดียว):
+   ```powershell
+   .\.venv\Scripts\python.exe -m app.cli add-device --vendor dahua --host 192.168.1.110 --user itc --name "NVR Dahua"
+   ```
+   (รหัสผ่าน: ถามตอนรัน หรือ `--password-file <ไฟล์>` ที่มีรหัสบรรทัดแรก)
 
 ### Web (ต้องมี Node.js 22)
 ```powershell
@@ -58,7 +69,8 @@ cd web
 npm install
 npm run dev
 ```
-เปิด http://localhost:3000 (ตอนนี้ยังเรียก ZoneMinder ผ่าน `/api/zm` และ Prisma จนกว่าจะเสร็จงาน W-03)
+เปิด http://localhost:3000 → จอมอนิเตอร์ (ภาพสด WebRTC), แผนที่ (คลิกกล้องดูภาพสด), ดูย้อนหลัง (จาก NVR)
+Next.js ส่ง `/api/*` ต่อไปที่ backend `:8000` (ตั้งใน `next.config.ts`) · หน้าตั้งค่ากล้อง/Topology ยังเรียก `/api/zm` จนกว่าจะเสร็จ W-03/W-06
 
 ## ติดตั้งบนเซิร์ฟเวอร์ (Docker)
 ```bash
