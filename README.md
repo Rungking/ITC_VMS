@@ -7,6 +7,7 @@
 
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md): การออกแบบระบบ และเหตุผลที่เลิกใช้ ZoneMinder
 - [docs/ROADMAP.md](docs/ROADMAP.md): แผนการพัฒนา
+- [docs/LAB_DEVICES.md](docs/LAB_DEVICES.md): อุปกรณ์ในแล็บ (Dahua/Hikvision 6 ชิ้น) และ API ที่ใช้ดึงข้อมูล
 - [docs/tasks/](docs/tasks/README.md): ติดตามงาน 2 สาย ([Backend](docs/tasks/BACKEND.md) · [Web](docs/tasks/WEB.md))
 
 ## โครงสร้าง
