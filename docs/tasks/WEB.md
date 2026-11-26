@@ -11,8 +11,8 @@ _(เขียนตรงนี้ก่อนสลับไปสาย Backe
 ## Phase 0: รวมโค้ดและถอด ZoneMinder
 
 - [x] **W-01** ย้ายโค้ดต้นแบบไปไว้ที่ `web/` (ประวัติ git ยังอยู่)
-- [ ] **W-02** Dockerfile ของ web (Next.js `output: "standalone"`) + เปิดใช้ใน compose · ส่งต่อ: B-07
-- [ ] **W-03** ถอดของเก่า: Prisma, `pg`, `app/api/zm`, `use-stream-verification`, `temp.txt`; ตั้ง `next.config` ให้ส่ง `/api` ไปที่ backend `:8000` ตอนพัฒนา
+- [x] **W-02** Dockerfile ของ web (Next.js `output: "standalone"`) + เปิดใช้ใน compose · ส่งต่อ: B-07 (ทดสอบ standalone บน Windows แล้ว ยังไม่ได้ build image เพราะเครื่องพัฒนาไม่มี Docker)
+- [ ] **W-03** ถอดของเก่า: Prisma, `pg`, `app/api/zm`, `use-stream-verification`, `temp.txt`; ตั้ง `next.config` ให้ส่ง `/api` ไปที่ backend `:8000` ตอนพัฒนา · **ไม่รวม branch `feature-topology-search` ของ upstream** (ผูกกับ ZoneMinder ทั้งหมด ตัดสินใจ 2026-11-26)
 - [ ] **W-04** Type `Camera` ใหม่ตาม API + API client (สร้างจาก OpenAPI ของ backend) · ต้องการ: B-04, B-05
 - [ ] **W-05** Login จริง: `LoginDialog` และ `AuthProvider` ใช้ `/api/auth/*`, ซ่อนเมนูตามบทบาท · ต้องการ: B-03
 - [ ] **W-06** หน้าตั้งค่ากล้อง (table/add/edit) ใช้ API ใหม่ · ต้องการ: W-04

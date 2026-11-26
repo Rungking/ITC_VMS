@@ -51,10 +51,10 @@ services:
         condition: service_started
 
   web:
-    build: ../web          # TODO(W-02): web/ has no Dockerfile yet
+    build: ../web
     restart: unless-stopped
     ports:
-      - "80:80"
+      - "80:3000"        # B-07 moves port 80 to the Caddy reverse proxy
     depends_on:
       - api
 
