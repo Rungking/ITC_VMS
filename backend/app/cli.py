@@ -162,6 +162,11 @@ async def _publish(drv, channel: int, url: str, seconds: int) -> None:
 
 
 def main() -> None:
+    # Driver messages are Thai; a Windows pipe or legacy console defaults to cp1252 and would crash on print.
+    for stream in (sys.stdout, sys.stderr):
+        if hasattr(stream, "reconfigure"):
+            stream.reconfigure(encoding="utf-8", errors="replace")
+
     parser = argparse.ArgumentParser(prog="python -m app.cli")
     sub = parser.add_subparsers(dest="command", required=True)
 

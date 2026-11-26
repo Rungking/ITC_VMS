@@ -9,7 +9,6 @@ import httpx
 
 from app.core.enums import DeviceKind, Vendor
 from app.drivers.base import (
-    AuthError,
     Capability,
     ChannelInfo,
     ConnectionParams,
@@ -98,19 +97,24 @@ class DahuaDriver(DeviceDriver):
 
     # --- device info (HTTP API) --------------------------------------------
     async def _optional_kv(self, path: str) -> dict[str, str]:
-        """For endpoints that some firmware lacks: return {} instead of failing (auth errors still raise)."""
+        """For endpoints that some firmware lacks or denies: return {} instead of failing.
+
+        Old firmware answers some endpoints with "Invalid Authority" (or 401) even for a valid admin,
+        e.g. getSerialNo on IPC-HFW5431E-Z 2.460 / ITC237 2.202. Call a required endpoint first so a
+        wrong password is still reported.
+        """
         try:
             return await self._client.get_kv(path)
-        except AuthError:
-            raise
-        except DriverError:
+        except DriverError as e:
+            log.debug("%s optional %s unavailable: %s", self.params.host, path, e)
             return {}
 
     async def get_device_info(self) -> DeviceInfo:
+        # Required first: proves the credentials before any optional call is allowed to fail quietly.
+        software = await self._client.get_kv("/cgi-bin/magicBox.cgi?action=getSoftwareVersion")
         system = await self._optional_kv("/cgi-bin/magicBox.cgi?action=getSystemInfo")
         device_type = await self._optional_kv("/cgi-bin/magicBox.cgi?action=getDeviceType")
         serial = await self._optional_kv("/cgi-bin/magicBox.cgi?action=getSerialNo")
-        software = await self._client.get_kv("/cgi-bin/magicBox.cgi?action=getSoftwareVersion")
         channels = await self.list_channels()
 
         # Older firmware puts a numeric code in getSystemInfo.deviceType (e.g. "31");

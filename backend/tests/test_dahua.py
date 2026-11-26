@@ -86,6 +86,24 @@ async def test_error_in_200_body_is_raised_not_swallowed():
         assert not isinstance(exc.value, AuthError)
 
 
+async def test_optional_endpoint_denied_does_not_fail_device_info():
+    # Real IPC-HFW5431E-Z 2.460 / ITC237 2.202: valid admin, but some endpoints are refused.
+    denied = "Error\r\nErrorID=0, Detail=Invalid Authority!\r\n"
+    replies = {
+        "/cgi-bin/magicBox.cgi?action=getSoftwareVersion": "version=2.460.0000.1.R,build:2016-10-25\r\n",
+        "/cgi-bin/magicBox.cgi?action=getSystemInfo": "deviceType=IPC-HFW5431E-Z\r\nhardwareVersion=1.00\r\n",
+        "/cgi-bin/magicBox.cgi?action=getDeviceType": "type=IPC-HFW5431E-Z\r\n",
+        "/cgi-bin/magicBox.cgi?action=getSerialNo": denied,
+        "/cgi-bin/configManager.cgi?action=getConfig&name=ChannelTitle": "table.ChannelTitle[0].Name=IPC\r\n",
+        "/cgi-bin/configManager.cgi?action=getConfig&name=RemoteDevice": denied,
+    }
+    async with DahuaDriver(PARAMS, transport=fake_device(replies)) as drv:
+        info = await drv.get_device_info()
+
+    assert (info.kind, info.model, info.channel_count) == (DeviceKind.CAMERA, "IPC-HFW5431E-Z", 1)
+    assert info.firmware.startswith("2.460")
+
+
 @pytest.mark.parametrize(
     "challenge", ['Basic realm="Device_CGI"', 'Digest realm="Login to X", nonce="abc", qop="auth"']
 )
