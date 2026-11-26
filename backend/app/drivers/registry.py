@@ -1,10 +1,12 @@
 from app.core.enums import Vendor
 from app.drivers.base import ConnectionParams, DeviceDriver, NotSupportedError
 from app.drivers.dahua import DahuaDriver
+from app.drivers.hikvision import HikvisionDriver
 
 _DRIVERS: dict[Vendor, type[DeviceDriver]] = {
     Vendor.DAHUA: DahuaDriver,
-    # Phase 5: Vendor.ONVIF, Vendor.HIKVISION, Vendor.UNIVIEW
+    Vendor.HIKVISION: HikvisionDriver,
+    # Phase 5: Vendor.ONVIF, Vendor.UNIVIEW
 }
 
 

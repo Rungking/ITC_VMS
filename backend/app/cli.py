@@ -82,6 +82,12 @@ async def _probe(args: argparse.Namespace) -> None:
                     media = DahuaMedia(args.media)
                     print(f"\n== Media path: {media.value} (forced) ==")
                 drv.media = media  # media is used lazily, so switching here is safe
+            else:
+                from app.media.rtsp_probe import probe_rtsp
+
+                rtsp = await probe_rtsp(drv.authenticated_url(await drv.get_stream_url(channel, StreamType.SUB)))
+                print(f"\n== RTSP check on channel {channel}: {rtsp.status}"
+                      f"{' ' + ','.join(rtsp.codecs) if rtsp.codecs else ''} ==")
 
             if args.snapshot:
                 try:
