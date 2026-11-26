@@ -9,7 +9,7 @@ from app.media.bridge import StreamBridge
 
 def grab_frame(source: PushSource, timeout: float = 10.0) -> bytes:
     """Blocking. Decodes until the first complete picture (needs a keyframe, usually < 2 s)."""
-    with tempfile.TemporaryDirectory(prefix="cctv-frame-") as tmp:
+    with tempfile.TemporaryDirectory(prefix="vms-frame-") as tmp:
         out = Path(tmp) / "frame.jpg"
         bridge = StreamBridge(source, output_args=["-frames:v", "1", "-q:v", "3", "-y", str(out)])
         bridge.start()

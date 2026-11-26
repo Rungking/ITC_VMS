@@ -12,7 +12,7 @@ _(เขียนตรงนี้ก่อนสลับไปสาย Web �
 ## Phase 0: รวมโค้ดและถอด ZoneMinder
 
 - [x] **B-01** ย้าย backend, deploy และเอกสารจากโครงการ CCTV เข้า repo พร้อมประวัติ git, ตั้ง venv และรันเทสต์ผ่าน (29 tests)
-- [ ] **B-02** เปลี่ยนชื่อจาก CCTV เป็น ITC VMS: prefix ตัวแปร `CCTV_*` → `VMS_*`, ชื่อแพ็กเกจ, ชื่อ project/ฐานข้อมูลใน compose, ผู้ใช้ใน Dockerfile
+- [x] **B-02** เปลี่ยนชื่อจาก CCTV เป็น ITC VMS: prefix ตัวแปร `CCTV_*` → `VMS_*`, ชื่อแพ็กเกจ, ชื่อ project/ฐานข้อมูลใน compose, ผู้ใช้ใน Dockerfile
 - [ ] **B-03** Login แบบ cookie: `POST /api/auth/login` ตั้ง JWT ใน httpOnly cookie, `GET /api/auth/me`, `POST /api/auth/logout` · ส่งต่อ: W-05
 - [ ] **B-04** Data model: Camera เพิ่ม `lat`, `lng`, `location_name`; ตารางใหม่ `NetworkNode`, `TopologyLink`, `TopologyPosition` + Alembic migration · ส่งต่อ: W-04, W-14
 - [ ] **B-05** API อุปกรณ์/กล้อง/Topology: `/api/devices`, `/api/cameras`, `/api/topology` (CRUD + ตรวจสิทธิ์ + audit) · ต้องการ: B-04 · ส่งต่อ: W-04, W-06

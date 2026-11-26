@@ -20,8 +20,8 @@ RUN if ls vendor/*.whl >/dev/null 2>&1; then pip install vendor/*.whl; fi
 COPY alembic.ini ./
 COPY alembic ./alembic
 
-RUN useradd --system --uid 1000 cctv
-USER cctv
+RUN useradd --system --uid 1000 vms
+USER vms
 
 EXPOSE 8000
 # Apply DB migrations, then serve. --proxy-headers: real client IP from nginx for the audit log.

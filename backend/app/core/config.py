@@ -6,14 +6,14 @@ DEFAULT_SECRET = "change-me"
 
 
 class Settings(BaseSettings):
-    """All settings come from environment variables prefixed with CCTV_ (or a .env file)."""
+    """All settings come from environment variables prefixed with VMS_ (or a .env file)."""
 
-    model_config = SettingsConfigDict(env_prefix="CCTV_", env_file=".env", extra="ignore")
+    model_config = SettingsConfigDict(env_prefix="VMS_", env_file=".env", extra="ignore")
 
     environment: str = "development"  # development | production
-    app_name: str = "CCTV Platform"
+    app_name: str = "ITC VMS"
 
-    database_url: str = "postgresql+asyncpg://cctv:cctv@localhost:5432/cctv"
+    database_url: str = "postgresql+asyncpg://vms:vms@localhost:5432/vms"
     redis_url: str = "redis://localhost:6379/0"
     mediamtx_api_url: str = "http://localhost:9997"
 

@@ -1,22 +1,22 @@
-# CCTV Platform - single-server deployment.
+# ITC VMS - single-server deployment.
 #   cp .env.example .env   (then fill in the secrets)
 #   docker compose up -d --build
 # Web UI: http://<server-ip>/
 
-name: cctv
+name: itc_vms
 
 services:
   db:
     image: postgres:16-alpine
     restart: unless-stopped
     environment:
-      POSTGRES_DB: cctv
-      POSTGRES_USER: cctv
+      POSTGRES_DB: vms
+      POSTGRES_USER: vms
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
     volumes:
       - db-data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U cctv -d cctv"]
+      test: ["CMD-SHELL", "pg_isready -U vms -d vms"]
       interval: 5s
       retries: 10
 
@@ -41,9 +41,9 @@ services:
     restart: unless-stopped
     env_file: .env
     environment:
-      CCTV_DATABASE_URL: postgresql+asyncpg://cctv:${POSTGRES_PASSWORD}@db:5432/cctv
-      CCTV_REDIS_URL: redis://redis:6379/0
-      CCTV_MEDIAMTX_API_URL: http://mediamtx:9997
+      VMS_DATABASE_URL: postgresql+asyncpg://vms:${POSTGRES_PASSWORD}@db:5432/vms
+      VMS_REDIS_URL: redis://redis:6379/0
+      VMS_MEDIAMTX_API_URL: http://mediamtx:9997
     depends_on:
       db:
         condition: service_healthy

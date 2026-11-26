@@ -2,9 +2,9 @@ import os
 import tempfile
 
 # Must be set before any app module creates the engine.
-_tmpdir = tempfile.mkdtemp(prefix="cctv-test-")
-os.environ["CCTV_DATABASE_URL"] = f"sqlite+aiosqlite:///{_tmpdir}/test.db"
-os.environ["CCTV_SECRET_KEY"] = "test-secret-key-that-is-long-enough-for-hs256"
+_tmpdir = tempfile.mkdtemp(prefix="vms-test-")
+os.environ["VMS_DATABASE_URL"] = f"sqlite+aiosqlite:///{_tmpdir}/test.db"
+os.environ["VMS_SECRET_KEY"] = "test-secret-key-that-is-long-enough-for-hs256"
 
 import httpx  # noqa: E402
 import pytest  # noqa: E402

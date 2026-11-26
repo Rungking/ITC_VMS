@@ -1,7 +1,7 @@
 [project]
-name = "cctv-backend"
+name = "itc-vms-backend"
 version = "0.1.0"
-description = "CCTV Management Platform - API server, device drivers and workers"
+description = "ITC VMS - API server, device drivers and workers"
 requires-python = ">=3.12"
 dependencies = [
     "fastapi>=0.115",

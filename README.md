@@ -32,13 +32,13 @@ py -m venv .venv
 
 รันด้วย SQLite (ไม่ต้องติดตั้ง PostgreSQL):
 ```powershell
-$env:CCTV_DATABASE_URL = "sqlite+aiosqlite:///./dev.db"
-$env:CCTV_FIRST_ADMIN_USERNAME = "admin"
-$env:CCTV_FIRST_ADMIN_PASSWORD = "<ตั้งรหัสผ่าน>"
+$env:VMS_DATABASE_URL = "sqlite+aiosqlite:///./dev.db"
+$env:VMS_FIRST_ADMIN_USERNAME = "admin"
+$env:VMS_FIRST_ADMIN_PASSWORD = "<ตั้งรหัสผ่าน>"
 .\.venv\Scripts\alembic.exe upgrade head
 .\.venv\Scripts\python.exe -m uvicorn app.main:app --reload
 ```
-เอกสาร API: http://localhost:8000/api/docs (prefix `CCTV_` จะเปลี่ยนเป็น `VMS_` ในงาน B-02)
+เอกสาร API: http://localhost:8000/api/docs
 
 **Dahua NetSDK** (จำเป็นสำหรับ NVR firmware เก่าที่ RTSP ใช้ไม่ได้): ดู [backend/vendor/README.md](backend/vendor/README.md)
 

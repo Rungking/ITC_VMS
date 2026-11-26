@@ -8,7 +8,7 @@ from app.core.config import get_settings
 def _fernet() -> Fernet:
     key = get_settings().credentials_key
     if not key:
-        raise RuntimeError("CCTV_CREDENTIALS_KEY is not set (generate one with: python -m app.cli gen-keys)")
+        raise RuntimeError("VMS_CREDENTIALS_KEY is not set (generate one with: python -m app.cli gen-keys)")
     return Fernet(key)
 
 

@@ -15,7 +15,7 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name
 async def lifespan(_: FastAPI):
     settings = get_settings()
     if settings.is_production and (settings.secret_key == DEFAULT_SECRET or not settings.credentials_key):
-        raise RuntimeError("Set CCTV_SECRET_KEY and CCTV_CREDENTIALS_KEY before running in production")
+        raise RuntimeError("Set VMS_SECRET_KEY and VMS_CREDENTIALS_KEY before running in production")
     await ensure_first_admin()
     yield
 

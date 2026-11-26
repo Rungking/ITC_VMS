@@ -52,7 +52,7 @@ async def probe_rtsp(url: str, timeout: float = 6.0) -> RtspProbeResult:  # noqa
                 cseq, auth = 1, None
                 while True:
                     req = (f"DESCRIBE {clean} RTSP/1.0\r\nCSeq: {cseq}\r\n"
-                           "Accept: application/sdp\r\nUser-Agent: cctv\r\n")
+                           "Accept: application/sdp\r\nUser-Agent: itc-vms\r\n")
                     if auth:
                         req += f"Authorization: {auth}\r\n"
                     writer.write((req + "\r\n").encode())

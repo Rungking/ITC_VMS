@@ -5,7 +5,7 @@
     python -m app.cli probe --host 192.168.1.108 --user admin [--snapshot ch1.jpg] [--events 30]
 
 `probe` talks to a real device without touching the database - use it in the lab to check
-that a camera/NVR works with our driver. The device password is read from CCTV_PROBE_PASSWORD
+that a camera/NVR works with our driver. The device password is read from VMS_PROBE_PASSWORD
 or asked interactively (never pass it on the command line: it ends up in shell history).
 """
 
@@ -23,8 +23,8 @@ from app.core.enums import Vendor
 def _gen_keys(_: argparse.Namespace) -> None:
     from cryptography.fernet import Fernet
 
-    print(f"CCTV_SECRET_KEY={secrets.token_urlsafe(48)}")
-    print(f"CCTV_CREDENTIALS_KEY={Fernet.generate_key().decode()}")
+    print(f"VMS_SECRET_KEY={secrets.token_urlsafe(48)}")
+    print(f"VMS_CREDENTIALS_KEY={Fernet.generate_key().decode()}")
 
 
 async def _create_admin(args: argparse.Namespace) -> None:
@@ -50,7 +50,7 @@ async def _create_admin(args: argparse.Namespace) -> None:
 async def _probe(args: argparse.Namespace) -> None:
     from app.drivers import ConnectionParams, DriverError, StreamType, create_driver
 
-    password = os.environ.get("CCTV_PROBE_PASSWORD") or getpass.getpass(f"Password for {args.user}@{args.host}: ")
+    password = os.environ.get("VMS_PROBE_PASSWORD") or getpass.getpass(f"Password for {args.user}@{args.host}: ")
     params = ConnectionParams(host=args.host, username=args.user, password=password,
                               http_port=args.http_port, rtsp_port=args.rtsp_port, use_https=args.https)
     try:

@@ -12,7 +12,7 @@ log = logging.getLogger(__name__)
 
 
 async def ensure_first_admin() -> None:
-    """On a fresh install, create the admin from CCTV_FIRST_ADMIN_USERNAME/PASSWORD."""
+    """On a fresh install, create the admin from VMS_FIRST_ADMIN_USERNAME/PASSWORD."""
     settings = get_settings()
     if not (settings.first_admin_username and settings.first_admin_password):
         return
