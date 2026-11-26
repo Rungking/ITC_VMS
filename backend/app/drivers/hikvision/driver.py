@@ -1,5 +1,6 @@
 import logging
 from collections.abc import AsyncIterator
+from datetime import datetime
 
 import httpx
 
@@ -41,7 +42,8 @@ class HikvisionDriver(DeviceDriver):
     """
 
     vendor = Vendor.HIKVISION
-    capabilities = frozenset({Capability.LIVE, Capability.SNAPSHOT, Capability.EVENTS, Capability.AI_EVENTS})
+    capabilities = frozenset({Capability.LIVE, Capability.SNAPSHOT, Capability.PLAYBACK, Capability.EVENTS,
+                              Capability.AI_EVENTS})
 
     def __init__(self, params: ConnectionParams, transport: httpx.AsyncBaseTransport | None = None) -> None:
         super().__init__(params)
@@ -89,12 +91,12 @@ class HikvisionDriver(DeviceDriver):
             root = await self._client.get_xml("/ISAPI/ContentMgmt/InputProxy/channels")
         except NotSupportedError:
             return None
-        online: dict[int, bool] = {}
+        detect: dict[int, str] = {}  # chanDetectResult: "connect", "notExist", offline reasons...
         try:
             status = await self._client.get_xml("/ISAPI/ContentMgmt/InputProxy/channels/status")
             for st in status.iter("InputProxyChannelStatus"):
                 if (number := _int(_text(st, "id"))) is not None:
-                    online[number] = _text(st, "online").lower() == "true"
+                    detect[number] = _text(st, "chanDetectResult").lower()
         except NotSupportedError:
             pass
         channels = []
@@ -102,11 +104,20 @@ class HikvisionDriver(DeviceDriver):
             number = _int(_text(ch, "id"))
             if number is None:
                 continue
+            desc = ch.find("sourceInputPortDescriptor")
+            address = _text(desc, "ipAddress") if desc is not None else ""
+            # The NVR lists every slot (16 on a 16-ch NVR). Empty PoE slots still carry a reserved address
+            # (192.168.254.x, connMode=plugplay) and report chanDetectResult=notExist; a configured camera that
+            # is merely offline reports another result and stays in the list.
+            if number in detect:
+                has_camera = detect[number] not in ("notexist", "")
+            else:
+                has_camera = bool(_text(desc, "model")) or (bool(address) and _text(desc, "connMode") != "plugplay")
             channels.append(ChannelInfo(
                 channel=number,
                 name=_text(ch, "name") or f"Channel {number}",
-                connected=online.get(number),
-                remote_address=_text(ch, "sourceInputPortDescriptor/ipAddress"),
+                connected=has_camera,
+                remote_address=address if has_camera else "",
             ))
         return sorted(channels, key=lambda c: c.channel)
 
@@ -118,6 +129,12 @@ class HikvisionDriver(DeviceDriver):
     async def get_stream_url(self, channel: int, stream: StreamType = StreamType.SUB) -> str:
         return (f"rtsp://{self.params.host}:{self.params.rtsp_port}"
                 f"/Streaming/Channels/{self._stream_id(channel, stream)}")
+
+    async def get_playback_url(self, channel: int, start: datetime, end: datetime) -> str:
+        # Hikvision writes a trailing "Z" but reads the time as the device's local clock.
+        start, end = self.device_local(start), self.device_local(end)
+        return (f"rtsp://{self.params.host}:{self.params.rtsp_port}/Streaming/tracks/{channel}01"
+                f"?starttime={start:%Y%m%dT%H%M%S}Z&endtime={end:%Y%m%dT%H%M%S}Z")
 
     async def get_snapshot(self, channel: int) -> bytes:
         return await self._client.get_bytes(

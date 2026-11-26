@@ -59,6 +59,13 @@ class Camera(Base):
     zone_id: Mapped[int | None] = mapped_column(ForeignKey("zones.id", ondelete="SET NULL"))
     enabled: Mapped[bool] = mapped_column(default=True)
     has_ai: Mapped[bool] = mapped_column(default=False)
+    # IP of the physical camera (behind an NVR channel, or the device itself). One physical camera is
+    # stored once even when several NVRs record it.
+    remote_address: Mapped[str] = mapped_column(String(255), default="", index=True)
+    # Map position (WGS84). Empty until someone places the camera on the map.
+    lat: Mapped[float | None] = mapped_column(default=None)
+    lng: Mapped[float | None] = mapped_column(default=None)
+    location_name: Mapped[str] = mapped_column(String(255), default="")
     created_at: Mapped[datetime] = created_at_column()
 
     device: Mapped[Device] = relationship(back_populates="cameras")

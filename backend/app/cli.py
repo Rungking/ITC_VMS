@@ -3,10 +3,12 @@
     python -m app.cli gen-keys
     python -m app.cli create-admin --username admin
     python -m app.cli probe --host 192.168.1.108 --user admin [--snapshot ch1.jpg] [--events 30]
+    python -m app.cli add-device --vendor hikvision --host 192.168.1.168 --user admin --password-file pw.txt
 
 `probe` talks to a real device without touching the database - use it in the lab to check
-that a camera/NVR works with our driver. The device password is read from VMS_PROBE_PASSWORD
-or asked interactively (never pass it on the command line: it ends up in shell history).
+that a camera/NVR works with our driver. `add-device` stores it (password encrypted) with its cameras.
+The device password comes from --password-file, VMS_PROBE_PASSWORD, or is asked interactively
+(never pass it on the command line: it ends up in shell history).
 """
 
 import argparse
@@ -47,10 +49,37 @@ async def _create_admin(args: argparse.Namespace) -> None:
     print(f"Created admin {args.username!r}")
 
 
+def _read_password(args: argparse.Namespace, prompt: str) -> str:
+    """--password-file (first line), else VMS_PROBE_PASSWORD, else ask. Never from the command line itself."""
+    if getattr(args, "password_file", None):
+        return Path(args.password_file).read_text(encoding="utf-8-sig").splitlines()[0].strip()
+    return os.environ.get("VMS_PROBE_PASSWORD") or getpass.getpass(prompt)
+
+
+async def _add_device(args: argparse.Namespace) -> None:
+    from app.core.db import SessionLocal
+    from app.drivers import DriverError
+    from app.services.devices import DeviceExistsError, add_device
+
+    password = _read_password(args, f"Password for {args.user}@{args.host}: ")
+    async with SessionLocal() as db:
+        try:
+            device = await add_device(db, name=args.name, vendor=Vendor(args.vendor), host=args.host,
+                                      username=args.user, password=password, http_port=args.http_port,
+                                      rtsp_port=args.rtsp_port)
+        except (DeviceExistsError, DriverError) as e:
+            sys.exit(f"Error: {e}")
+        await db.commit()
+        print(f"Added device {device.id}: {device.name} ({device.vendor} {device.kind} {device.model}), "
+              f"{len(device.cameras)} camera(s):")
+        for cam in device.cameras:
+            print(f"  camera {cam.id}: ch{cam.channel} {cam.name}")
+
+
 async def _probe(args: argparse.Namespace) -> None:
     from app.drivers import ConnectionParams, DriverError, StreamType, create_driver
 
-    password = os.environ.get("VMS_PROBE_PASSWORD") or getpass.getpass(f"Password for {args.user}@{args.host}: ")
+    password = _read_password(args, f"Password for {args.user}@{args.host}: ")
     params = ConnectionParams(host=args.host, username=args.user, password=password,
                               http_port=args.http_port, rtsp_port=args.rtsp_port, use_https=args.https)
     try:
@@ -183,10 +212,21 @@ def main() -> None:
     p.add_argument("--full-name", default="ผู้ดูแลระบบ")
     p.set_defaults(func=lambda a: asyncio.run(_create_admin(a)))
 
+    p = sub.add_parser("add-device", help="add an NVR/camera and its channels to the database")
+    p.add_argument("--vendor", required=True, choices=[v.value for v in Vendor])
+    p.add_argument("--host", required=True)
+    p.add_argument("--user", required=True)
+    p.add_argument("--name", default="", help="display name (default: the model)")
+    p.add_argument("--http-port", type=int, default=80)
+    p.add_argument("--rtsp-port", type=int, default=554)
+    p.add_argument("--password-file", help="read the password from the first line of this file")
+    p.set_defaults(func=lambda a: asyncio.run(_add_device(a)))
+
     p = sub.add_parser("probe", help="test a camera/NVR with its driver")
     p.add_argument("--vendor", default=Vendor.DAHUA.value, choices=[v.value for v in Vendor])
     p.add_argument("--host", required=True)
     p.add_argument("--user", required=True)
+    p.add_argument("--password-file", help="read the password from the first line of this file")
     p.add_argument("--http-port", type=int, default=80)
     p.add_argument("--rtsp-port", type=int, default=554)
     p.add_argument("--https", action="store_true")

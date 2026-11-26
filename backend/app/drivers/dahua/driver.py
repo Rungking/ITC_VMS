@@ -52,7 +52,8 @@ def parse_remote_devices(kv: dict[str, str]) -> dict[int, tuple[bool, str]]:
 
 class DahuaDriver(DeviceDriver):
     vendor = Vendor.DAHUA
-    capabilities = frozenset({Capability.LIVE, Capability.SNAPSHOT, Capability.EVENTS, Capability.AI_EVENTS})
+    capabilities = frozenset({Capability.LIVE, Capability.SNAPSHOT, Capability.PLAYBACK, Capability.EVENTS,
+                              Capability.AI_EVENTS})
 
     def __init__(
         self,
@@ -149,6 +150,11 @@ class DahuaDriver(DeviceDriver):
         subtype = 0 if stream is StreamType.MAIN else 1
         return (f"rtsp://{self.params.host}:{self.params.rtsp_port}"
                 f"/cam/realmonitor?channel={channel}&subtype={subtype}")
+
+    async def get_playback_url(self, channel: int, start: datetime, end: datetime) -> str:
+        start, end = self.device_local(start), self.device_local(end)
+        return (f"rtsp://{self.params.host}:{self.params.rtsp_port}/cam/playback?channel={channel}&subtype=0"
+                f"&starttime={start:%Y_%m_%d_%H_%M_%S}&endtime={end:%Y_%m_%d_%H_%M_%S}")
 
     async def live_source(self, channel: int, stream: StreamType = StreamType.SUB) -> LiveSource:
         if self.media is DahuaMedia.NETSDK:

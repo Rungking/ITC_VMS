@@ -5,6 +5,12 @@ import tempfile
 _tmpdir = tempfile.mkdtemp(prefix="vms-test-")
 os.environ["VMS_DATABASE_URL"] = f"sqlite+aiosqlite:///{_tmpdir}/test.db"
 os.environ["VMS_SECRET_KEY"] = "test-secret-key-that-is-long-enough-for-hs256"
+os.environ["VMS_CREDENTIALS_KEY"] = "kGl0bWVgw1GbAqd0QnOdRIF0Ux8VQ5w9I_D43B6Hsus="  # test-only Fernet key
+# Explicit values win over a developer's backend/.env (which may enable dev shortcuts).
+os.environ["VMS_DEV_NO_AUTH"] = "false"
+os.environ["VMS_ENVIRONMENT"] = "development"
+os.environ["VMS_MEDIAMTX_API_URL"] = "http://127.0.0.1:9997"
+os.environ["VMS_MEDIAMTX_WEBRTC_URL"] = "http://127.0.0.1:8889"
 
 import httpx  # noqa: E402
 import pytest  # noqa: E402

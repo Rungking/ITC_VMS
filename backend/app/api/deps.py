@@ -5,6 +5,7 @@ from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import get_settings
 from app.core.db import get_db
 from app.core.enums import ROLE_LEVEL, Role
 from app.core.security import decode_access_token
@@ -32,6 +33,34 @@ async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)], db: DB
 
 
 CurrentUser = Annotated[User, Depends(get_current_user)]
+
+_optional_token = OAuth2PasswordBearer(tokenUrl="/api/auth/login", auto_error=False)
+
+
+async def get_viewer(token: Annotated[str | None, Depends(_optional_token)], db: DB) -> User | None:
+    """Any logged-in user. With VMS_DEV_NO_AUTH (development only) anonymous access is allowed too."""
+    if token:
+        return await get_current_user(token, db)
+    if get_settings().dev_no_auth:
+        return None
+    raise HTTPException(status.HTTP_401_UNAUTHORIZED, detail="กรุณาเข้าสู่ระบบ",
+                        headers={"WWW-Authenticate": "Bearer"})
+
+
+Viewer = Annotated[User | None, Depends(get_viewer)]
+
+
+async def get_admin_or_dev(token: Annotated[str | None, Depends(_optional_token)], db: DB) -> User | None:
+    """An admin. With VMS_DEV_NO_AUTH and no token, anonymous (development only)."""
+    if not token and get_settings().dev_no_auth:
+        return None
+    if not token:
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, detail="กรุณาเข้าสู่ระบบ",
+                            headers={"WWW-Authenticate": "Bearer"})
+    return await require_role(Role.ADMIN)(await get_current_user(token, db))
+
+
+AdminOrDev = Annotated[User | None, Depends(get_admin_or_dev)]
 
 
 def require_role(min_role: Role):

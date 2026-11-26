@@ -157,9 +157,17 @@ class DeviceDriver(ABC):
         raise NotSupportedError(f"{self.vendor} driver: recording search not implemented")
 
     async def get_playback_url(self, channel: int, start: datetime, end: datetime) -> str:
+        """RTSP URL (no credentials) that replays the device's own recording from `start` to `end`.
+        Naive datetimes are the device's local clock; aware ones are converted to this server's local time
+        (assumes server and device share a timezone)."""
         raise NotSupportedError(f"{self.vendor} driver: playback not implemented")
 
     # --- helpers --------------------------------------------------------
+    @staticmethod
+    def device_local(when: datetime) -> datetime:
+        """Recording times on NVRs are in the device's local clock, without a timezone."""
+        return when.astimezone().replace(tzinfo=None) if when.tzinfo else when
+
     def authenticated_url(self, url: str) -> str:
         """Insert this device's credentials into an rtsp:// URL (for the media server only - never log it)."""
         parts = urlsplit(url)

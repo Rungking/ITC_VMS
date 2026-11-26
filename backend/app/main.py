@@ -4,7 +4,7 @@ from contextlib import asynccontextmanager
 from fastapi import APIRouter, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api import auth, users
+from app.api import auth, cameras, devices, users
 from app.core.config import DEFAULT_SECRET, get_settings
 from app.services.bootstrap import ensure_first_admin
 
@@ -16,6 +16,8 @@ async def lifespan(_: FastAPI):
     settings = get_settings()
     if settings.is_production and (settings.secret_key == DEFAULT_SECRET or not settings.credentials_key):
         raise RuntimeError("Set VMS_SECRET_KEY and VMS_CREDENTIALS_KEY before running in production")
+    if settings.is_production and settings.dev_no_auth:
+        raise RuntimeError("VMS_DEV_NO_AUTH is for development only - remove it in production")
     await ensure_first_admin()
     yield
 
@@ -36,6 +38,8 @@ def create_app() -> FastAPI:
 
     api.include_router(auth.router)
     api.include_router(users.router)
+    api.include_router(devices.router)
+    api.include_router(cameras.router)
     app.include_router(api)
     return app
 

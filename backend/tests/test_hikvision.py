@@ -43,12 +43,20 @@ NVR = {
         "<proxyProtocol>HIKVISION</proxyProtocol><ipAddress>192.168.254.12</ipAddress><managePortNo>8000</managePortNo>"
         "</sourceInputPortDescriptor></InputProxyChannel>"
         "<InputProxyChannel><id>2</id><name>Gate</name><sourceInputPortDescriptor>"
-        "<ipAddress>192.168.254.13</ipAddress></sourceInputPortDescriptor></InputProxyChannel>",
+        "<ipAddress>192.168.254.13</ipAddress></sourceInputPortDescriptor></InputProxyChannel>"
+        # Empty PoE slot, as the real DS-7616NXI-K2/16P(D) reports it: a reserved address, plugplay mode
+        "<InputProxyChannel><id>3</id><name>IPCamera 03</name><sourceInputPortDescriptor>"
+        "<ipAddress>192.168.254.4</ipAddress><connMode>plugplay</connMode></sourceInputPortDescriptor>"
+        "</InputProxyChannel>",
         "InputProxyChannelList",
     ),
     "/ISAPI/ContentMgmt/InputProxy/channels/status": xml(
-        "<InputProxyChannelStatus><id>1</id><online>true</online></InputProxyChannelStatus>"
-        "<InputProxyChannelStatus><id>2</id><online>false</online></InputProxyChannelStatus>",
+        "<InputProxyChannelStatus><id>1</id><online>true</online><chanDetectResult>connect</chanDetectResult>"
+        "</InputProxyChannelStatus>"
+        "<InputProxyChannelStatus><id>2</id><online>false</online><chanDetectResult>offline</chanDetectResult>"
+        "</InputProxyChannelStatus>"
+        "<InputProxyChannelStatus><id>3</id><online>false</online><chanDetectResult>notExist</chanDetectResult>"
+        "</InputProxyChannelStatus>",
         "InputProxyChannelStatusList",
     ),
 }
@@ -90,10 +98,12 @@ async def test_nvr_info_and_channels():
 
     assert (info.vendor, info.kind, info.model) == (Vendor.HIKVISION, DeviceKind.NVR, "DS-7616NXI-K2/16P(D)")
     assert info.firmware == "V4.84.100 build 250918"
-    assert info.channel_count == 2
+    assert info.channel_count == 3
+    # "connected" = a camera is configured in the slot (ch2 is configured but offline; ch3 is an empty slot)
     assert [(c.channel, c.name, c.connected, c.remote_address) for c in channels] == [
         (1, "Server Rm01", True, "192.168.254.12"),
-        (2, "Gate", False, "192.168.254.13"),
+        (2, "Gate", True, "192.168.254.13"),
+        (3, "IPCamera 03", False, ""),
     ]
 
 
