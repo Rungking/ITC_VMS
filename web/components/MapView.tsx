@@ -84,7 +84,6 @@ export default function MapView() {
   // ── Init Leaflet ────────────────────────────────────────────────────────
   useEffect(() => {
     import("leaflet").then((leaflet) => {
-      // @ts-expect-error - Leaflet internals
       delete (leaflet.Icon.Default.prototype as unknown as { _getIconUrl?: unknown })._getIconUrl;
       leaflet.Icon.Default.mergeOptions({
         iconRetinaUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
