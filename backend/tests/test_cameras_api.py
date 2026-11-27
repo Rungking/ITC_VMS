@@ -124,6 +124,22 @@ async def test_live_falls_back_to_main_when_there_is_no_sub_stream(client, nvr, 
     assert mediamtx[f"cam{nvr}_main"].endswith("/Streaming/Channels/101")
 
 
+async def test_unreachable_device_is_not_remembered_as_main_only(client, nvr, mediamtx, monkeypatch):
+    # Cable unplugged: the probe times out. Use the sub stream path and ask again next time.
+    calls = []
+
+    async def probe(url, **_):
+        calls.append(url)
+        return RtspProbeResult(ok=False, status="timeout")
+
+    monkeypatch.setattr(cameras_api, "probe_rtsp", probe)
+    monkeypatch.setattr(cameras_api, "_sub_checked", {})
+    for _ in range(2):
+        r = await client.get(f"/api/cameras/{nvr}/live?stream=sub", headers=await auth_headers(client, "viewer"))
+        assert r.json()["path"] == f"cam{nvr}_sub"
+    assert len(calls) == 2
+
+
 async def test_live_registers_on_demand_path(client, nvr, mediamtx, rtsp_ok):
     r = await client.get(f"/api/cameras/{nvr}/live?stream=sub", headers=await auth_headers(client, "viewer"))
     assert r.status_code == 200

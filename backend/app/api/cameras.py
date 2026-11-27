@@ -52,8 +52,12 @@ async def live(camera_id: int, _: Viewer, db: DB, stream: StreamKind = "sub"):
         url = drv.authenticated_url(await drv.get_stream_url(camera.channel, StreamType(stream)))
         if stream == "sub":
             if camera.id not in _sub_checked:
-                _sub_checked[camera.id] = (await probe_rtsp(url, timeout=4)).ok
-            if not _sub_checked[camera.id]:
+                result = await probe_rtsp(url, timeout=4)
+                # Remember only a real RTSP answer (200, 404, ...). Timeouts/refused mean the device is
+                # unreachable right now - not that it lacks a sub stream - so check again next time.
+                if result.ok or result.status[:1].isdigit():
+                    _sub_checked[camera.id] = result.ok
+            if not _sub_checked.get(camera.id, True):
                 stream = "main"
                 url = drv.authenticated_url(await drv.get_stream_url(camera.channel, StreamType.MAIN))
     path = media.live_path(camera.id, stream)
